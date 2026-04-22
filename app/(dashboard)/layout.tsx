@@ -6,20 +6,37 @@ import MenuCard from "@/components/MenuCard"
 import RecipeModal from "@/components/RecipeModal"
 import { supabase, saveWeekSelections, loadWeekSelections } from "@/lib/supabase"
 
-function getMonday(offset: number = 0) {
-  const today = new Date()
-  const monday = new Date(today)
-  monday.setDate(today.getDate() - ((today.getDay() + 6) % 7) + offset * 7)
-  monday.setHours(0, 0, 0, 0)
-  return monday
+function getMondayForOffset(weekOffset: number): Date {
+  const now = new Date()
+  const day = now.getDay()
+  const diff = (day === 0 ? -6 : 1) - day
+  const thisMonday = new Date(now)
+  thisMonday.setDate(now.getDate() + diff)
+  thisMonday.setHours(0, 0, 0, 0)
+  const target = new Date(thisMonday)
+  target.setDate(thisMonday.getDate() + weekOffset * 7)
+  return target
 }
 
 function formatDate(d: Date) {
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" })
 }
 
-function makeWeek(mondayOffset: number): DaySelection[] {
-  const monday = getMonday(mondayOffset)
+function getWeekLabel(offset: number): string {
+  if (offset === 0) return "This week"
+  if (offset === 1) return "Next week"
+  return "Week after"
+}
+
+function getWeekDateRange(weekOffset: number): string {
+  const monday = getMondayForOffset(weekOffset)
+  const sunday = new Date(monday)
+  sunday.setDate(monday.getDate() + 6)
+  return `${formatDate(monday)} - ${formatDate(sunday)}`
+}
+
+function makeWeek(weekOffset: number): DaySelection[] {
+  const monday = getMondayForOffset(weekOffset)
   return DAYS.map((day, i) => {
     const d = new Date(monday)
     d.setDate(monday.getDate() + i)
@@ -29,18 +46,24 @@ function makeWeek(mondayOffset: number): DaySelection[] {
 
 type Week = {
   id: number
+  weekOffset: number
   label: string
+  dateRange: string
   selections: DaySelection[]
   confirmed: boolean
   expanded: boolean
 }
 
 function buildWeeks(): Week[] {
-  return [
-    { id: 0, label: "This week", selections: makeWeek(0), confirmed: false, expanded: false },
-    { id: 1, label: "Next week", selections: makeWeek(1), confirmed: false, expanded: false },
-    { id: 2, label: "Week after", selections: makeWeek(2), confirmed: false, expanded: false },
-  ]
+  return [0, 1, 2].map(offset => ({
+    id: offset,
+    weekOffset: offset,
+    label: getWeekLabel(offset),
+    dateRange: getWeekDateRange(offset),
+    selections: makeWeek(offset),
+    confirmed: false,
+    expanded: false,
+  }))
 }
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -60,7 +83,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       const saved = await loadWeekSelections(user.id)
       if (saved.length > 0) {
         setWeeks(prev => prev.map(week => {
-          const weekRows = saved.filter((r: any) => r.week_offset === week.id)
+          const weekRows = saved.filter((r: any) => r.week_offset === week.weekOffset)
           if (weekRows.length === 0) return week
           const confirmed = weekRows.some((r: any) => r.confirmed)
           const selections = week.selections.map((s, i) => {
@@ -75,6 +98,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       setLoading(false)
     }
     init()
+
+    const interval = setInterval(() => {
+      const now = new Date()
+      if (now.getDay() === 1 && now.getHours() === 0 && now.getMinutes() === 0) {
+        setWeeks(buildWeeks())
+      }
+    }, 60000)
+
+    return () => clearInterval(interval)
   }, [])
 
   const updateWeek = (weekId: number, selections: DaySelection[]) => {
@@ -257,9 +289,14 @@ function WeeklyTab({ weeks, updateWeek, confirmWeek, toggleExpand }: {
                     fontSize: 16, fontWeight: 700, color: week.confirmed ? "#fff" : "var(--text-muted)"
                   }}>{week.confirmed ? "✓" : locked ? "🔒" : idx + 1}</div>
                   <div>
-                    <p style={{ fontWeight: 700, fontSize: 16, marginBottom: 1 }}>{week.label}</p>
+                    <p style={{ fontWeight: 700, fontSize: 16, marginBottom: 1 }}>
+                      {week.label}
+                      <span style={{ fontWeight: 400, fontSize: 12, color: "var(--text-muted)", marginLeft: 8 }}>
+                        {week.dateRange}
+                      </span>
+                    </p>
                     <p style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                      {week.confirmed ? "Completed" : locked ? "Complete previous week first" : `${selectedCount}/7 meals selected`}
+                      {week.confirmed ? "Confirmed — tap to view plan" : locked ? "Complete previous week first" : `${selectedCount}/7 meals selected`}
                     </p>
                   </div>
                 </div>
@@ -272,11 +309,18 @@ function WeeklyTab({ weeks, updateWeek, confirmWeek, toggleExpand }: {
                       }} />
                     ))}
                   </div>
-                  {!week.confirmed && !locked && (
+                  {!locked && (
                     <span style={{ fontSize: 16, color: "var(--text-muted)" }}>{week.expanded ? "▲" : "▼"}</span>
                   )}
                 </div>
               </div>
+
+              {week.expanded && week.confirmed && (
+                <div style={{ borderTop: "1px solid var(--border)", padding: "16px" }}>
+                  <WeekReadOnly week={week} />
+                </div>
+              )}
+
               {week.expanded && !week.confirmed && (
                 <div style={{ borderTop: "1px solid var(--border)", padding: "16px" }}>
                   <WeekEditor week={week} onUpdate={(s) => updateWeek(week.id, s)} onConfirm={() => confirmWeek(week.id)} isComplete={isComplete} />
@@ -285,6 +329,58 @@ function WeeklyTab({ weeks, updateWeek, confirmWeek, toggleExpand }: {
             </div>
           )
         })}
+      </div>
+    </div>
+  )
+}
+
+function WeekReadOnly({ week }: { week: Week }) {
+  const [selectedRecipe, setSelectedRecipe] = useState<Menu | null>(null)
+
+  return (
+    <div>
+      {selectedRecipe && <RecipeModal menu={selectedRecipe} onClose={() => setSelectedRecipe(null)} />}
+      <div style={{ marginBottom: 12 }}>
+        <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 12 }}>
+          {week.selections.filter(s => s.menu).length} meals planned · {week.selections.filter(s => s.skipped).length} days skipped
+        </p>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {week.selections.map((s, i) => (
+          <div key={i} style={{
+            display: "flex", alignItems: "center", gap: 12, padding: "10px 14px",
+            background: s.menu ? "var(--green-pale)" : s.skipped ? "#f5f0e8" : "var(--cream)",
+            borderRadius: 10, border: "1px solid var(--border)"
+          }}>
+            <div style={{ minWidth: 60 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}>{s.day.slice(0, 3)}</div>
+              <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{s.date}</div>
+            </div>
+            {s.menu ? (
+              <>
+                <img src={s.menu.image_url} alt={s.menu.name}
+                  style={{ width: 44, height: 44, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontWeight: 600, fontSize: 14, marginBottom: 1 }}>{s.menu.name}</p>
+                  <p style={{ fontSize: 11, color: "var(--text-muted)" }}>{s.menu.cook_time} min · {s.menu.calories} kcal</p>
+                </div>
+                <button onClick={() => setSelectedRecipe(s.menu)} style={{
+                  background: "var(--green)", color: "#fff", border: "none",
+                  borderRadius: 999, padding: "5px 12px", fontSize: 11,
+                  fontWeight: 600, cursor: "pointer", flexShrink: 0
+                }}>View</button>
+              </>
+            ) : s.skipped ? (
+              <div style={{ flex: 1 }}>
+                <p style={{ fontSize: 13, color: "var(--text-muted)", fontStyle: "italic" }}>Day skipped</p>
+              </div>
+            ) : (
+              <div style={{ flex: 1 }}>
+                <p style={{ fontSize: 13, color: "var(--border)" }}>Not planned</p>
+              </div>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   )
@@ -396,35 +492,46 @@ function WeekEditor({ week, onUpdate, onConfirm, isComplete }: {
 }
 
 function IngredientsTab({ weeks }: { weeks: Week[] }) {
-  const [scope, setScope] = useState<"this" | "next2">("this")
-  const selectedWeeks = scope === "this" ? [weeks[0]] : weeks.slice(0, 2)
-  const selections = selectedWeeks.flatMap(w => w.selections)
-  const selectedMenus = selections.filter(s => s.menu).map(s => s.menu!)
+  const [selectedWeekIds, setSelectedWeekIds] = useState<number[]>([0])
 
-  if (selectedMenus.length === 0) {
-    return (
-      <div style={{ textAlign: "center", padding: "60px 0" }}>
-        <div style={{ fontSize: 56, marginBottom: 16 }}>🛒</div>
-        <h2 style={{ fontSize: 22, marginBottom: 8 }}>No meals planned yet</h2>
-        <p style={{ color: "var(--text-muted)", fontSize: 14 }}>Plan some dinners first.</p>
-      </div>
+  const toggleWeek = (id: number) => {
+    setSelectedWeekIds(prev =>
+      prev.includes(id)
+        ? prev.filter(w => w !== id)
+        : [...prev, id].sort()
     )
   }
 
-  const merged: Record<string, Ingredient & { days: string[] }> = {}
-  selections.forEach(s => {
-    if (!s.menu) return
-    s.menu.ingredients.forEach(ing => {
-      const key = ing.name.toLowerCase()
-      if (merged[key]) { merged[key].amount += ing.amount; merged[key].days.push(s.day.slice(0, 3)) }
-      else merged[key] = { ...ing, days: [s.day.slice(0, 3)] }
+  const selectedWeeks = weeks.filter(w => selectedWeekIds.includes(w.id))
+  const selections = selectedWeeks.flatMap(w => w.selections)
+  const selectedMenus = selections.filter(s => s.menu).map(s => s.menu!)
+
+  const merged: Record<string, Ingredient & { days: string[]; weekLabel: string }> = {}
+  selectedWeeks.forEach(week => {
+    week.selections.forEach(s => {
+      if (!s.menu) return
+      s.menu.ingredients.forEach(ing => {
+        const key = ing.name.toLowerCase()
+        if (merged[key]) {
+          merged[key].amount += ing.amount
+          merged[key].days.push(`${s.day.slice(0, 3)} (${week.label.split(" ")[0]})`)
+        } else {
+          merged[key] = {
+            ...ing,
+            days: [`${s.day.slice(0, 3)} (${week.label.split(" ")[0]})`],
+            weekLabel: week.label
+          }
+        }
+      })
     })
   })
-  const categories: Record<string, (Ingredient & { days: string[] })[]> = {}
+
+  const categories: Record<string, (Ingredient & { days: string[]; weekLabel: string })[]> = {}
   Object.values(merged).forEach(ing => {
     if (!categories[ing.category]) categories[ing.category] = []
     categories[ing.category].push(ing)
   })
+
   const catEmoji: Record<string, string> = { protein: "🥩", vegetable: "🥦", pantry: "🫙", dairy: "🧀", grain: "🌾" }
   const totalItems = Object.values(merged).length
 
@@ -432,49 +539,103 @@ function IngredientsTab({ weeks }: { weeks: Week[] }) {
     <div>
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.02em", marginBottom: 4 }}>Shopping list</h1>
-        <p style={{ color: "var(--text-muted)", fontSize: 14 }}>{selectedMenus.length} meals · {totalItems} ingredients</p>
+        <p style={{ color: "var(--text-muted)", fontSize: 14 }}>
+          {selectedWeekIds.length === 0
+            ? "Select a week below to see ingredients"
+            : `${selectedMenus.length} meals · ${totalItems} ingredients`}
+        </p>
       </div>
 
-      <div style={{
-        display: "flex", gap: 8, marginBottom: 24,
-        background: "var(--white)", borderRadius: 999,
-        padding: 4, border: "1px solid var(--border)", width: "fit-content"
-      }}>
-        {[
-          { key: "this", label: "This week only" },
-          { key: "next2", label: "This + next week" },
-        ].map(opt => (
-          <button key={opt.key} onClick={() => setScope(opt.key as "this" | "next2")} style={{
-            padding: "8px 20px", borderRadius: 999, border: "none",
-            background: scope === opt.key ? "var(--green)" : "transparent",
-            color: scope === opt.key ? "#fff" : "var(--text-muted)",
-            fontWeight: scope === opt.key ? 700 : 400,
-            cursor: "pointer", fontSize: 13, transition: "all 0.15s",
-            fontFamily: "DM Sans, sans-serif", whiteSpace: "nowrap"
-          }}>{opt.label}</button>
-        ))}
-      </div>
-
-      <div className="grid-ingredients">
-        {Object.entries(categories).map(([cat, items]) => (
-          <div key={cat} style={{ background: "var(--white)", borderRadius: "var(--radius)", border: "1px solid var(--border)", overflow: "hidden" }}>
-            <div style={{ background: "var(--green-pale)", padding: "12px 18px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 18 }}>{catEmoji[cat] || "📦"}</span>
-              <span style={{ fontWeight: 700, textTransform: "capitalize", fontSize: 15 }}>{cat}</span>
-              <span style={{ marginLeft: "auto", background: "var(--green)", color: "#fff", borderRadius: 999, padding: "2px 10px", fontSize: 12 }}>{items.length}</span>
-            </div>
-            {items.map(ing => (
-              <div key={ing.name} style={{ padding: "10px 18px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                <div style={{ minWidth: 0 }}>
-                  <span style={{ fontWeight: 500, fontSize: 14 }}>{ing.name}</span>
-                  <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 1 }}>{ing.days.join(", ")}</div>
+      {/* Week selector — multi-select checkboxes */}
+      <div style={{ marginBottom: 24 }}>
+        <p style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 10 }}>
+          Select weeks to shop for:
+        </p>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {weeks.map(week => {
+            const weekMenuCount = week.selections.filter(s => s.menu).length
+            const isSelected = selectedWeekIds.includes(week.id)
+            const hasData = weekMenuCount > 0
+            return (
+              <button
+                key={week.id}
+                onClick={() => toggleWeek(week.id)}
+                disabled={!hasData}
+                style={{
+                  padding: "10px 18px", borderRadius: 12, cursor: hasData ? "pointer" : "not-allowed",
+                  border: isSelected ? "2px solid var(--green)" : "2px solid var(--border)",
+                  background: isSelected ? "var(--green)" : "var(--white)",
+                  color: isSelected ? "#fff" : hasData ? "var(--text)" : "var(--text-muted)",
+                  opacity: hasData ? 1 : 0.5,
+                  transition: "all 0.15s", textAlign: "left", minWidth: 160
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
+                  <div style={{
+                    width: 18, height: 18, borderRadius: 4, border: isSelected ? "none" : "2px solid var(--border)",
+                    background: isSelected ? "rgba(255,255,255,0.3)" : "transparent",
+                    display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0
+                  }}>
+                    {isSelected && <span style={{ fontSize: 12, color: "#fff", fontWeight: 700 }}>✓</span>}
+                  </div>
+                  <span style={{ fontWeight: 700, fontSize: 14 }}>{week.label}</span>
                 </div>
-                <span style={{ background: "var(--cream-dark)", borderRadius: 8, padding: "3px 10px", fontSize: 12, fontWeight: 600, flexShrink: 0 }}>{ing.amount} {ing.unit}</span>
-              </div>
-            ))}
+                <div style={{ fontSize: 11, color: isSelected ? "rgba(255,255,255,0.8)" : "var(--text-muted)", paddingLeft: 26 }}>
+                  {week.dateRange}
+                </div>
+                <div style={{ fontSize: 11, color: isSelected ? "rgba(255,255,255,0.8)" : "var(--text-muted)", paddingLeft: 26, marginTop: 2 }}>
+                  {hasData ? `${weekMenuCount} meals planned` : "No meals planned yet"}
+                </div>
+              </button>
+            )
+          })}
+        </div>
+
+        {selectedWeekIds.length > 1 && (
+          <div style={{
+            marginTop: 12, padding: "10px 16px", background: "var(--green-pale)",
+            borderRadius: 10, border: "1px solid var(--green)", display: "flex", alignItems: "center", gap: 8
+          }}>
+            <span style={{ fontSize: 16 }}>🛒</span>
+            <span style={{ fontSize: 13, color: "var(--green)", fontWeight: 600 }}>
+              Combined list for {selectedWeekIds.length} weeks — duplicate ingredients have been summed up
+            </span>
           </div>
-        ))}
+        )}
       </div>
+
+      {selectedWeekIds.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "40px 0" }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>🛒</div>
+          <p style={{ color: "var(--text-muted)", fontSize: 15 }}>Select one or more weeks above to generate your shopping list.</p>
+        </div>
+      ) : selectedMenus.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "40px 0" }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>📅</div>
+          <p style={{ color: "var(--text-muted)", fontSize: 15 }}>No meals planned for the selected week(s) yet.</p>
+        </div>
+      ) : (
+        <div className="grid-ingredients">
+          {Object.entries(categories).map(([cat, items]) => (
+            <div key={cat} style={{ background: "var(--white)", borderRadius: "var(--radius)", border: "1px solid var(--border)", overflow: "hidden" }}>
+              <div style={{ background: "var(--green-pale)", padding: "12px 18px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 18 }}>{catEmoji[cat] || "📦"}</span>
+                <span style={{ fontWeight: 700, textTransform: "capitalize", fontSize: 15 }}>{cat}</span>
+                <span style={{ marginLeft: "auto", background: "var(--green)", color: "#fff", borderRadius: 999, padding: "2px 10px", fontSize: 12 }}>{items.length}</span>
+              </div>
+              {items.map(ing => (
+                <div key={ing.name} style={{ padding: "10px 18px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <span style={{ fontWeight: 500, fontSize: 14 }}>{ing.name}</span>
+                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 1 }}>{ing.days.join(", ")}</div>
+                  </div>
+                  <span style={{ background: "var(--cream-dark)", borderRadius: 8, padding: "3px 10px", fontSize: 12, fontWeight: 600, flexShrink: 0 }}>{ing.amount} {ing.unit}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
