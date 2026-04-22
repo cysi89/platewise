@@ -1,0 +1,1 @@
+﻿export default function NutritionChart() { return null }
