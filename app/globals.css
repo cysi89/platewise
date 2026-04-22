@@ -27,3 +27,55 @@ body {
 h1, h2, h3 {
   font-family: 'Playfair Display', serif;
 }
+
+/* Mobile viewport fix */
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Responsive grid utilities */
+.grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.grid-auto {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.grid-ingredients {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+@media (max-width: 768px) {
+  .grid-4 {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .grid-auto {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .grid-ingredients {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .grid-4 {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .grid-auto {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+}

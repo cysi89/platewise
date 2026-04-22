@@ -12,64 +12,57 @@ export default function RecipeModal({ menu, onClose }: Props) {
   }
 
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed", inset: 0, zIndex: 1000,
-        background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        padding: "24px"
-      }}
-    >
-      <div
-        onClick={e => e.stopPropagation()}
-        style={{
-          background: "var(--white)", borderRadius: 20,
-          maxWidth: 680, width: "100%", maxHeight: "90vh",
-          overflowY: "auto", boxShadow: "0 24px 80px rgba(0,0,0,0.3)"
-        }}
-      >
-        <div style={{ position: "relative", height: 260 }}>
+    <div onClick={onClose} style={{
+      position: "fixed", inset: 0, zIndex: 1000,
+      background: "rgba(0,0,0,0.6)",
+      display: "flex", alignItems: "flex-end",
+      justifyContent: "center", padding: "0"
+    }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background: "var(--white)",
+        borderRadius: "20px 20px 0 0",
+        width: "100%", maxWidth: 680,
+        maxHeight: "92vh", overflowY: "auto",
+        boxShadow: "0 -8px 40px rgba(0,0,0,0.2)"
+      }}>
+        {/* Drag handle */}
+        <div style={{ display: "flex", justifyContent: "center", padding: "12px 0 0" }}>
+          <div style={{ width: 40, height: 4, borderRadius: 999, background: "var(--border)" }} />
+        </div>
+
+        <div style={{ position: "relative", height: 220 }}>
           <img src={menu.image_url} alt={menu.name}
-            style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "20px 20px 0 0" }} />
-          <button
-            onClick={onClose}
-            style={{
-              position: "absolute", top: 16, right: 16,
-              background: "rgba(0,0,0,0.5)", border: "none", color: "#fff",
-              width: 36, height: 36, borderRadius: 999, cursor: "pointer",
-              fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center"
-            }}
-          >x</button>
+            style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          <button onClick={onClose} style={{
+            position: "absolute", top: 12, right: 12,
+            background: "rgba(0,0,0,0.5)", border: "none", color: "#fff",
+            width: 34, height: 34, borderRadius: 999, cursor: "pointer",
+            fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center"
+          }}>x</button>
           <div style={{
             position: "absolute", bottom: 0, left: 0, right: 0,
             background: "linear-gradient(transparent, rgba(0,0,0,0.7))",
-            padding: "40px 28px 20px", borderRadius: "0 0 0 0"
+            padding: "32px 20px 16px"
           }}>
             <h2 style={{
               fontFamily: "Playfair Display, serif", color: "#fff",
-              fontSize: 26, fontWeight: 700, marginBottom: 6
+              fontSize: 22, fontWeight: 700, marginBottom: 4
             }}>{menu.name}</h2>
-            <div style={{ display: "flex", gap: 16 }}>
-              {[
-                { label: menu.cook_time + " min", icon: "clock" },
-                { label: menu.calories + " kcal", icon: "fire" },
-                { label: menu.servings + " servings", icon: "people" },
-              ].map(item => (
-                <span key={item.label} style={{
-                  color: "rgba(255,255,255,0.9)", fontSize: 13, fontWeight: 500
-                }}>{item.label}</span>
-              ))}
+            <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+              <span style={{ color: "rgba(255,255,255,0.9)", fontSize: 13 }}>{menu.cook_time} min</span>
+              <span style={{ color: "rgba(255,255,255,0.9)", fontSize: 13 }}>{menu.calories} kcal</span>
+              <span style={{ color: "rgba(255,255,255,0.9)", fontSize: 13 }}>{menu.servings} servings</span>
             </div>
           </div>
         </div>
 
-        <div style={{ padding: "24px 28px 32px" }}>
-          <p style={{ color: "var(--text-muted)", fontSize: 15, marginBottom: 24, lineHeight: 1.6 }}>
+        <div style={{ padding: "20px 20px 32px" }}>
+          <p style={{ color: "var(--text-muted)", fontSize: 14, marginBottom: 20, lineHeight: 1.6 }}>
             {menu.description}
           </p>
 
-          <div style={{ display: "flex", gap: 12, marginBottom: 28, flexWrap: "wrap" }}>
+          {/* Macro row */}
+          <div style={{ display: "flex", gap: 8, marginBottom: 24, overflowX: "auto" }}>
             {[
               { label: "Protein", value: menu.protein + "g", color: "#3b82f6" },
               { label: "Carbs", value: menu.carbs + "g", color: "#f59e0b" },
@@ -78,58 +71,54 @@ export default function RecipeModal({ menu, onClose }: Props) {
             ].map(m => (
               <div key={m.label} style={{
                 background: "var(--cream)", borderRadius: 10,
-                padding: "10px 16px", flex: "1", minWidth: 100, textAlign: "center"
+                padding: "10px 14px", flex: "1", minWidth: 70, textAlign: "center", flexShrink: 0
               }}>
-                <div style={{ fontSize: 18, fontWeight: 700, color: m.color }}>{m.value}</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: m.color }}>{m.value}</div>
                 <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{m.label}</div>
               </div>
             ))}
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 28 }}>
-            <div>
-              <h3 style={{
-                fontFamily: "Playfair Display, serif", fontSize: 18,
-                fontWeight: 700, marginBottom: 14, color: "var(--green)"
-              }}>Ingredients</h3>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {menu.ingredients.map(ing => (
-                  <div key={ing.name} style={{
-                    display: "flex", alignItems: "center",
-                    justifyContent: "space-between", padding: "8px 12px",
-                    background: "var(--cream)", borderRadius: 8
-                  }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontSize: 14 }}>{catEmoji[ing.category]}</span>
-                      <span style={{ fontSize: 14, fontWeight: 500 }}>{ing.name}</span>
-                    </div>
-                    <span style={{
-                      fontSize: 13, color: "var(--text-muted)", fontWeight: 600
-                    }}>{ing.amount} {ing.unit}</span>
-                  </div>
-                ))}
+          {/* Ingredients */}
+          <h3 style={{
+            fontFamily: "Playfair Display, serif", fontSize: 17,
+            fontWeight: 700, marginBottom: 12, color: "var(--green)"
+          }}>Ingredients</h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 24 }}>
+            {menu.ingredients.map(ing => (
+              <div key={ing.name} style={{
+                display: "flex", alignItems: "center",
+                justifyContent: "space-between", padding: "8px 12px",
+                background: "var(--cream)", borderRadius: 8
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 14 }}>{catEmoji[ing.category]}</span>
+                  <span style={{ fontSize: 14, fontWeight: 500 }}>{ing.name}</span>
+                </div>
+                <span style={{ fontSize: 13, color: "var(--text-muted)", fontWeight: 600 }}>
+                  {ing.amount} {ing.unit}
+                </span>
               </div>
-            </div>
+            ))}
+          </div>
 
-            <div>
-              <h3 style={{
-                fontFamily: "Playfair Display, serif", fontSize: 18,
-                fontWeight: 700, marginBottom: 14, color: "var(--green)"
-              }}>Method</h3>
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {menu.recipe_steps.map((step, i) => (
-                  <div key={i} style={{ display: "flex", gap: 12 }}>
-                    <div style={{
-                      minWidth: 24, height: 24, borderRadius: 999,
-                      background: "var(--green)", color: "#fff",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 12, fontWeight: 700, marginTop: 1, flexShrink: 0
-                    }}>{i + 1}</div>
-                    <p style={{ fontSize: 14, lineHeight: 1.6, color: "var(--text)", margin: 0 }}>{step}</p>
-                  </div>
-                ))}
+          {/* Method */}
+          <h3 style={{
+            fontFamily: "Playfair Display, serif", fontSize: 17,
+            fontWeight: 700, marginBottom: 12, color: "var(--green)"
+          }}>Method</h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {menu.recipe_steps.map((step, i) => (
+              <div key={i} style={{ display: "flex", gap: 12 }}>
+                <div style={{
+                  minWidth: 24, height: 24, borderRadius: 999,
+                  background: "var(--green)", color: "#fff",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 12, fontWeight: 700, marginTop: 1, flexShrink: 0
+                }}>{i + 1}</div>
+                <p style={{ fontSize: 14, lineHeight: 1.6, color: "var(--text)", margin: 0 }}>{step}</p>
               </div>
-            </div>
+            ))}
           </div>
         </div>
       </div>
