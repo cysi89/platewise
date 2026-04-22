@@ -27,31 +27,24 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{
+    <div suppressHydrationWarning style={{
       minHeight: "100vh", background: "var(--cream)",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      padding: "24px"
+      display: "flex", alignItems: "center", justifyContent: "center", padding: "24px"
     }}>
       <div style={{
-        background: "var(--white)", borderRadius: 24,
-        padding: "48px 40px", width: "100%", maxWidth: 420,
+        background: "var(--white)", borderRadius: 24, padding: "48px 40px",
+        width: "100%", maxWidth: 420,
         boxShadow: "0 8px 48px rgba(0,0,0,0.10)", border: "1px solid var(--border)"
       }}>
         <div style={{ textAlign: "center", marginBottom: 40 }}>
-          <img
-            src="/images/genie-logo.png"
-            alt="Genie"
+          <img src="/images/genie-logo.png" alt="Genie"
             style={{ height: 80, marginBottom: 16, objectFit: "contain" }}
-            onError={e => { (e.target as HTMLImageElement).style.display = "none" }}
-          />
+            onError={e => { (e.target as HTMLImageElement).style.display = "none" }} />
           <h1 style={{
-            fontFamily: "Playfair Display, serif",
-            fontSize: 36, fontWeight: 700, color: "var(--green)",
-            letterSpacing: "-0.02em", marginBottom: 8
+            fontFamily: "Playfair Display, serif", fontSize: 36, fontWeight: 700,
+            color: "var(--green)", letterSpacing: "-0.02em", marginBottom: 8
           }}>Genie</h1>
-          <p style={{ color: "var(--text-muted)", fontSize: 15 }}>
-            Your smart dinner planning assistant
-          </p>
+          <p style={{ color: "var(--text-muted)", fontSize: 15 }}>Your smart dinner planning assistant</p>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -60,6 +53,7 @@ export default function LoginPage() {
               Email
             </label>
             <input
+              suppressHydrationWarning
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
@@ -68,16 +62,15 @@ export default function LoginPage() {
                 width: "100%", padding: "12px 16px", borderRadius: 12,
                 border: "1.5px solid var(--border)", fontSize: 15,
                 fontFamily: "DM Sans, sans-serif", outline: "none",
-                background: "var(--cream)", color: "var(--text)",
-                boxSizing: "border-box"
-              }}
-            />
+                background: "var(--cream)", color: "var(--text)", boxSizing: "border-box"
+              }} />
           </div>
           <div>
             <label style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", display: "block", marginBottom: 6 }}>
               Password
             </label>
             <input
+              suppressHydrationWarning
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
@@ -87,10 +80,8 @@ export default function LoginPage() {
                 width: "100%", padding: "12px 16px", borderRadius: 12,
                 border: "1.5px solid var(--border)", fontSize: 15,
                 fontFamily: "DM Sans, sans-serif", outline: "none",
-                background: "var(--cream)", color: "var(--text)",
-                boxSizing: "border-box"
-              }}
-            />
+                background: "var(--cream)", color: "var(--text)", boxSizing: "border-box"
+              }} />
           </div>
 
           {error && (
@@ -108,14 +99,12 @@ export default function LoginPage() {
             onClick={handleAuth}
             disabled={loading || !email || !password}
             style={{
-              background: "var(--green)", color: "#fff", border: "none",
-              borderRadius: 12, padding: "14px", fontSize: 16, fontWeight: 700,
+              background: "var(--green)", color: "#fff", border: "none", borderRadius: 12,
+              padding: "14px", fontSize: 16, fontWeight: 700,
               cursor: loading ? "not-allowed" : "pointer",
               opacity: loading || !email || !password ? 0.7 : 1,
-              transition: "all 0.15s", marginTop: 4,
-              fontFamily: "DM Sans, sans-serif"
-            }}
-          >
+              transition: "all 0.15s", marginTop: 4, fontFamily: "DM Sans, sans-serif"
+            }}>
             {loading ? "Please wait..." : isSignUp ? "Create account" : "Sign in"}
           </button>
 
@@ -123,10 +112,8 @@ export default function LoginPage() {
             onClick={() => { setIsSignUp(!isSignUp); setError(""); setMessage("") }}
             style={{
               background: "transparent", border: "none", color: "var(--text-muted)",
-              fontSize: 14, cursor: "pointer", padding: "4px",
-              fontFamily: "DM Sans, sans-serif"
-            }}
-          >
+              fontSize: 14, cursor: "pointer", padding: "4px", fontFamily: "DM Sans, sans-serif"
+            }}>
             {isSignUp ? "Already have an account? Sign in" : "No account? Create one"}
           </button>
         </div>
