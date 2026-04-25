@@ -1,8 +1,11 @@
 ﻿"use client"
 import { useState, useEffect } from "react"
+import { useTranslation } from "react-i18next"
+import "@/lib/i18n"
 import { DAYS, DaySelection, Menu, Ingredient } from "@/lib/types"
 import MenuCard from "@/components/MenuCard"
 import RecipeModal from "@/components/RecipeModal"
+import LanguageToggle from "@/components/LanguageToggle"
 import { supabase, saveWeekSelections, loadWeekSelections, fetchAllRecipes, cleanupOldSelections } from "@/lib/supabase"
 
 function getMondayForOffset(weekOffset: number): Date {
@@ -21,10 +24,10 @@ function formatDate(d: Date) {
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" })
 }
 
-function getWeekLabel(offset: number): string {
-  if (offset === 0) return "This week"
-  if (offset === 1) return "Next week"
-  return "Week after"
+function getMondayForOffsetLabel(offset: number, t: any): string {
+  if (offset === 0) return t("weekly.thisWeek")
+  if (offset === 1) return t("weekly.nextWeek")
+  return t("weekly.weekAfter")
 }
 
 function getWeekDateRange(weekOffset: number): string {
@@ -51,28 +54,37 @@ type Week = {
   selections: DaySelection[]
   confirmed: boolean
   expanded: boolean
+  editing: boolean
 }
 
-function buildWeeks(): Week[] {
+function buildWeeks(t: any): Week[] {
   return [0, 1, 2].map(offset => ({
     id: offset,
     weekOffset: offset,
-    label: getWeekLabel(offset),
+    label: getMondayForOffsetLabel(offset, t),
     dateRange: getWeekDateRange(offset),
     selections: makeWeek(offset),
     confirmed: false,
     expanded: false,
+    editing: false,
   }))
 }
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation()
   const [tab, setTab] = useState(0)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [weeks, setWeeks] = useState<Week[]>(buildWeeks())
+  const [weeks, setWeeks] = useState<Week[]>(() => buildWeeks(t))
   const [menus, setMenus] = useState<Menu[]>([])
   const [userId, setUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const tabs = ["This Week", "Ingredients", "Nutrition", "Recipes"]
+
+  const tabs = [
+    t("nav.thisWeek"),
+    t("nav.ingredients"),
+    t("nav.nutrition"),
+    t("nav.recipes"),
+  ]
 
   useEffect(() => {
     const init = async () => {
@@ -80,11 +92,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       if (!user) { window.location.href = "/login"; return }
       setUserId(user.id)
 
-      // Load recipes from Supabase
       const recipes = await fetchAllRecipes()
       if (recipes.length > 0) setMenus(recipes)
 
-      // Load saved selections
       const saved = await loadWeekSelections(user.id)
       if (saved.length > 0) {
         setWeeks(prev => prev.map(week => {
@@ -109,7 +119,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const interval = setInterval(() => {
       const now = new Date()
       if (now.getDay() === 1 && now.getHours() === 0 && now.getMinutes() === 0) {
-        setWeeks(buildWeeks())
+        setWeeks(buildWeeks(t))
       }
     }, 60000)
 
@@ -135,14 +145,44 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       week.selections.map((s, i) => ({ menu_id: s.menu?.id || null, skipped: s.skipped, day_index: i })),
       true
     )
-    setWeeks(prev => prev.map(w => w.id === weekId ? { ...w, confirmed: true, expanded: false } : w))
+    setWeeks(prev => prev.map(w => w.id === weekId
+      ? { ...w, confirmed: true, expanded: false, editing: false }
+      : w
+    ))
+  }
+
+  const startEditing = (weekId: number) => {
+    setWeeks(prev => prev.map(w => w.id === weekId
+      ? { ...w, editing: true, expanded: true }
+      : { ...w, expanded: false }
+    ))
+  }
+
+  const cancelEditing = async (weekId: number) => {
+    if (!userId) return
+    const saved = await loadWeekSelections(userId)
+    setWeeks(prev => prev.map(week => {
+      if (week.id !== weekId) return week
+      const weekRows = saved.filter((r: any) => r.week_offset === week.weekOffset)
+      const selections = week.selections.map((s, i) => {
+        const row = weekRows.find((r: any) => r.day_index === i)
+        if (!row) return { ...s, menu: null, skipped: false }
+        const menu = row.menu_id ? menus.find(m => m.id === row.menu_id) || null : null
+        return { ...s, menu, skipped: row.skipped }
+      })
+      return { ...week, selections, editing: false, expanded: true }
+    }))
   }
 
   const toggleExpand = (weekId: number) => {
     const week = weeks.find(w => w.id === weekId)
     if (!week) return
     if (weekId > 0 && !weeks[weekId - 1].confirmed) return
-    setWeeks(prev => prev.map(w => w.id === weekId ? { ...w, expanded: !w.expanded } : { ...w, expanded: false }))
+    if (week.editing) return
+    setWeeks(prev => prev.map(w => w.id === weekId
+      ? { ...w, expanded: !w.expanded }
+      : { ...w, expanded: false }
+    ))
   }
 
   const allSelections = weeks.flatMap(w => w.selections)
@@ -158,7 +198,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div style={{ textAlign: "center" }}>
           <img src="/images/genie-logo.png" alt="Genie" style={{ height: 60, marginBottom: 16, opacity: 0.7 }}
             onError={e => { (e.target as HTMLImageElement).style.display = "none" }} />
-          <p style={{ color: "var(--text-muted)", fontFamily: "DM Sans, sans-serif" }}>Loading your plan...</p>
+          <p style={{ color: "var(--text-muted)", fontFamily: "DM Sans, sans-serif" }}>{t("loading")}</p>
         </div>
       </div>
     )
@@ -180,22 +220,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
 
         <nav style={{ display: "flex", gap: 4 }} className="desktop-nav">
-          {tabs.map((t, i) => (
+          {tabs.map((tab_label, i) => (
             <button key={i} onClick={() => setTab(i)} style={{
               background: tab === i ? "rgba(255,255,255,0.2)" : "transparent",
               border: tab === i ? "1px solid rgba(255,255,255,0.4)" : "1px solid transparent",
               color: "#fff", padding: "7px 14px", borderRadius: 999,
               cursor: "pointer", fontSize: 13, fontWeight: 500, transition: "all 0.15s", whiteSpace: "nowrap"
-            }}>{t}</button>
+            }}>{tab_label}</button>
           ))}
         </nav>
 
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <LanguageToggle />
           <button onClick={handleSignOut} style={{
             background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)",
             borderRadius: 999, padding: "6px 12px", color: "#fff", fontSize: 12,
             cursor: "pointer", fontFamily: "DM Sans, sans-serif", whiteSpace: "nowrap"
-          }}>Sign out</button>
+          }}>{t("nav.signOut")}</button>
           <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             style={{
               background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)",
@@ -212,12 +253,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           display: "flex", flexDirection: "column", gap: 4,
           boxShadow: "0 4px 12px rgba(0,0,0,0.2)"
         }}>
-          {tabs.map((t, i) => (
+          {tabs.map((tab_label, i) => (
             <button key={i} onClick={() => { setTab(i); setMobileMenuOpen(false) }} style={{
               background: tab === i ? "rgba(255,255,255,0.2)" : "transparent",
               border: "none", color: "#fff", padding: "12px 16px", borderRadius: 10,
               cursor: "pointer", fontSize: 15, fontWeight: tab === i ? 600 : 400, textAlign: "left"
-            }}>{t}</button>
+            }}>{tab_label}</button>
           ))}
         </div>
       )}
@@ -227,7 +268,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         background: "var(--white)", borderTop: "1px solid var(--border)",
         display: "none", padding: "8px 0 12px"
       }} className="mobile-bottom-nav">
-        {tabs.map((t, i) => {
+        {tabs.map((tab_label, i) => {
           const icons = ["📅", "🛒", "📊", "📖"]
           return (
             <button key={i} onClick={() => setTab(i)} style={{
@@ -235,7 +276,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               display: "flex", flexDirection: "column", alignItems: "center", gap: 3, padding: "4px 0"
             }}>
               <span style={{ fontSize: 20 }}>{icons[i]}</span>
-              <span style={{ fontSize: 10, fontWeight: tab === i ? 700 : 400, color: tab === i ? "var(--green)" : "var(--text-muted)" }}>{t}</span>
+              <span style={{ fontSize: 10, fontWeight: tab === i ? 700 : 400, color: tab === i ? "var(--green)" : "var(--text-muted)" }}>{tab_label}</span>
             </button>
           )
         })}
@@ -250,7 +291,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       `}</style>
 
       <main style={{ maxWidth: 1200, margin: "0 auto", padding: "24px 16px 80px" }}>
-        {tab === 0 && <WeeklyTab weeks={weeks} menus={menus} updateWeek={updateWeek} confirmWeek={confirmWeek} toggleExpand={toggleExpand} />}
+        {tab === 0 && <WeeklyTab weeks={weeks} menus={menus} updateWeek={updateWeek} confirmWeek={confirmWeek} toggleExpand={toggleExpand} startEditing={startEditing} cancelEditing={cancelEditing} />}
         {tab === 1 && <IngredientsTab weeks={weeks} />}
         {tab === 2 && <NutritionTab selections={allSelections} />}
         {tab === 3 && <RecipesTab selections={weeks[0].selections} menus={menus} />}
@@ -259,18 +300,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   )
 }
 
-function WeeklyTab({ weeks, menus, updateWeek, confirmWeek, toggleExpand }: {
+function WeeklyTab({ weeks, menus, updateWeek, confirmWeek, toggleExpand, startEditing, cancelEditing }: {
   weeks: Week[]
   menus: Menu[]
   updateWeek: (id: number, s: DaySelection[]) => void
   confirmWeek: (id: number) => void
   toggleExpand: (id: number) => void
+  startEditing: (id: number) => void
+  cancelEditing: (id: number) => void
 }) {
+  const { t } = useTranslation()
+
   return (
     <div>
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.02em", marginBottom: 4 }}>Weekly planner</h1>
-        <p style={{ color: "var(--text-muted)", fontSize: 14 }}>Plan your next 3 weeks. Complete week 1 to unlock week 2.</p>
+        <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.02em", marginBottom: 4 }}>{t("weekly.title")}</h1>
+        <p style={{ color: "var(--text-muted)", fontSize: 14 }}>{t("weekly.subtitle")}</p>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {weeks.map((week, idx) => {
@@ -278,33 +323,42 @@ function WeeklyTab({ weeks, menus, updateWeek, confirmWeek, toggleExpand }: {
           const selectedCount = week.selections.filter(s => s.menu).length
           const skippedCount = week.selections.filter(s => s.skipped).length
           const isComplete = selectedCount + skippedCount === 7
+
           return (
             <div key={week.id} style={{
               background: "var(--white)", borderRadius: "var(--radius)",
-              border: week.confirmed ? "2px solid var(--green)" : "1px solid var(--border)",
+              border: week.editing ? "2px solid var(--orange)" : week.confirmed ? "2px solid var(--green)" : "1px solid var(--border)",
               overflow: "hidden", opacity: locked ? 0.5 : 1, transition: "all 0.2s"
             }}>
-              <div onClick={() => !locked && toggleExpand(week.id)} style={{
+              <div onClick={() => !locked && !week.editing && toggleExpand(week.id)} style={{
                 padding: "16px 20px", display: "flex", alignItems: "center",
-                justifyContent: "space-between", cursor: locked ? "not-allowed" : "pointer",
-                background: week.confirmed ? "var(--green-pale)" : "var(--white)"
+                justifyContent: "space-between",
+                cursor: locked || week.editing ? "default" : "pointer",
+                background: week.editing ? "#fff8f4" : week.confirmed ? "var(--green-pale)" : "var(--white)"
               }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                   <div style={{
                     width: 36, height: 36, borderRadius: 999, flexShrink: 0,
-                    background: week.confirmed ? "var(--green)" : locked ? "var(--border)" : "var(--cream-dark)",
+                    background: week.editing ? "var(--orange)" : week.confirmed ? "var(--green)" : locked ? "var(--border)" : "var(--cream-dark)",
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: 16, fontWeight: 700, color: week.confirmed ? "#fff" : "var(--text-muted)"
-                  }}>{week.confirmed ? "✓" : locked ? "🔒" : idx + 1}</div>
+                    fontSize: 16, fontWeight: 700,
+                    color: week.editing || week.confirmed ? "#fff" : "var(--text-muted)"
+                  }}>
+                    {week.editing ? "✏️" : week.confirmed ? "✓" : locked ? "🔒" : idx + 1}
+                  </div>
                   <div>
                     <p style={{ fontWeight: 700, fontSize: 16, marginBottom: 1 }}>
                       {week.label}
-                      <span style={{ fontWeight: 400, fontSize: 12, color: "var(--text-muted)", marginLeft: 8 }}>
-                        {week.dateRange}
-                      </span>
+                      <span style={{ fontWeight: 400, fontSize: 12, color: "var(--text-muted)", marginLeft: 8 }}>{week.dateRange}</span>
                     </p>
-                    <p style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                      {week.confirmed ? "Confirmed — tap to view plan" : locked ? "Complete previous week first" : `${selectedCount}/7 meals selected`}
+                    <p style={{ fontSize: 12, color: week.editing ? "var(--orange)" : "var(--text-muted)" }}>
+                      {week.editing
+                        ? t("weekly.editing")
+                        : week.confirmed
+                          ? t("weekly.confirmed")
+                          : locked
+                            ? t("weekly.completePrevious")
+                            : `${selectedCount}/7 ${t("weekly.mealsSelected")}`}
                     </p>
                   </div>
                 </div>
@@ -317,21 +371,39 @@ function WeeklyTab({ weeks, menus, updateWeek, confirmWeek, toggleExpand }: {
                       }} />
                     ))}
                   </div>
-                  {!locked && (
+                  {!locked && !week.editing && (
                     <span style={{ fontSize: 16, color: "var(--text-muted)" }}>{week.expanded ? "▲" : "▼"}</span>
                   )}
                 </div>
               </div>
 
-              {week.expanded && week.confirmed && (
+              {week.expanded && week.confirmed && !week.editing && (
                 <div style={{ borderTop: "1px solid var(--border)", padding: "16px" }}>
-                  <WeekReadOnly week={week} />
+                  <WeekReadOnly week={week} onEdit={() => startEditing(week.id)} />
                 </div>
               )}
 
-              {week.expanded && !week.confirmed && (
+              {week.editing && (
+                <div style={{ borderTop: "2px solid var(--orange)", padding: "16px" }}>
+                  <div style={{
+                    background: "#fff8f4", border: "1px solid var(--orange)",
+                    borderRadius: 10, padding: "10px 16px", marginBottom: 16,
+                    display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12
+                  }}>
+                    <p style={{ fontSize: 13, color: "var(--orange)", fontWeight: 600 }}>{t("weekly.editingBanner")}</p>
+                    <button onClick={() => cancelEditing(week.id)} style={{
+                      background: "transparent", border: "1px solid var(--orange)",
+                      color: "var(--orange)", borderRadius: 999, padding: "5px 14px",
+                      fontSize: 12, cursor: "pointer", fontWeight: 600, flexShrink: 0
+                    }}>{t("weekly.cancel")}</button>
+                  </div>
+                  <WeekEditor week={week} menus={menus} onUpdate={(s) => updateWeek(week.id, s)} onConfirm={() => confirmWeek(week.id)} isComplete={isComplete} isEditing={true} />
+                </div>
+              )}
+
+              {week.expanded && !week.confirmed && !week.editing && (
                 <div style={{ borderTop: "1px solid var(--border)", padding: "16px" }}>
-                  <WeekEditor week={week} menus={menus} onUpdate={(s) => updateWeek(week.id, s)} onConfirm={() => confirmWeek(week.id)} isComplete={isComplete} />
+                  <WeekEditor week={week} menus={menus} onUpdate={(s) => updateWeek(week.id, s)} onConfirm={() => confirmWeek(week.id)} isComplete={isComplete} isEditing={false} />
                 </div>
               )}
             </div>
@@ -342,16 +414,23 @@ function WeeklyTab({ weeks, menus, updateWeek, confirmWeek, toggleExpand }: {
   )
 }
 
-function WeekReadOnly({ week }: { week: Week }) {
+function WeekReadOnly({ week, onEdit }: { week: Week; onEdit: () => void }) {
+  const { t } = useTranslation()
   const [selectedRecipe, setSelectedRecipe] = useState<Menu | null>(null)
 
   return (
     <div>
       {selectedRecipe && <RecipeModal menu={selectedRecipe} onClose={() => setSelectedRecipe(null)} />}
-      <div style={{ marginBottom: 12 }}>
-        <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 12 }}>
-          {week.selections.filter(s => s.menu).length} meals planned · {week.selections.filter(s => s.skipped).length} days skipped
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+        <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
+          {week.selections.filter(s => s.menu).length} {t("weekly.meals")} · {week.selections.filter(s => s.skipped).length} {t("weekly.skippedDays")}
         </p>
+        <button onClick={onEdit} style={{
+          background: "var(--white)", border: "1.5px solid var(--green)",
+          color: "var(--green)", borderRadius: 999, padding: "7px 18px",
+          fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex",
+          alignItems: "center", gap: 6, transition: "all 0.15s"
+        }}>✏️ {t("weekly.editWeek")}</button>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {week.selections.map((s, i) => (
@@ -366,26 +445,21 @@ function WeekReadOnly({ week }: { week: Week }) {
             </div>
             {s.menu ? (
               <>
-                <img src={s.menu.image_url} alt={s.menu.name}
-                  style={{ width: 44, height: 44, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />
+                <img src={s.menu.image_url} alt={s.menu.name} style={{ width: 44, height: 44, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ fontWeight: 600, fontSize: 14, marginBottom: 1 }}>{s.menu.name}</p>
-                  <p style={{ fontSize: 11, color: "var(--text-muted)" }}>{s.menu.cook_time} min · {s.menu.calories} kcal</p>
+                  <p style={{ fontSize: 11, color: "var(--text-muted)" }}>{s.menu.cook_time} {t("recipes.min")} · {s.menu.calories} {t("recipes.kcal")}</p>
                 </div>
                 <button onClick={() => setSelectedRecipe(s.menu)} style={{
                   background: "var(--green)", color: "#fff", border: "none",
                   borderRadius: 999, padding: "5px 12px", fontSize: 11,
                   fontWeight: 600, cursor: "pointer", flexShrink: 0
-                }}>View</button>
+                }}>{t("weekly.view")}</button>
               </>
             ) : s.skipped ? (
-              <div style={{ flex: 1 }}>
-                <p style={{ fontSize: 13, color: "var(--text-muted)", fontStyle: "italic" }}>Day skipped</p>
-              </div>
+              <div style={{ flex: 1 }}><p style={{ fontSize: 13, color: "var(--text-muted)", fontStyle: "italic" }}>{t("weekly.skipped")}</p></div>
             ) : (
-              <div style={{ flex: 1 }}>
-                <p style={{ fontSize: 13, color: "var(--border)" }}>Not planned</p>
-              </div>
+              <div style={{ flex: 1 }}><p style={{ fontSize: 13, color: "var(--border)" }}>{t("weekly.notPlanned")}</p></div>
             )}
           </div>
         ))}
@@ -394,16 +468,14 @@ function WeekReadOnly({ week }: { week: Week }) {
   )
 }
 
-function WeekEditor({ week, menus, onUpdate, onConfirm, isComplete }: {
-  week: Week
-  menus: Menu[]
-  onUpdate: (s: DaySelection[]) => void
-  onConfirm: () => void
-  isComplete: boolean
+function WeekEditor({ week, menus, onUpdate, onConfirm, isComplete, isEditing }: {
+  week: Week; menus: Menu[]; onUpdate: (s: DaySelection[]) => void; onConfirm: () => void; isComplete: boolean; isEditing: boolean
 }) {
+  const { t } = useTranslation()
   const [activeDay, setActiveDay] = useState(0)
   const [filter, setFilter] = useState("all")
-  const filters = ["all", "quick", "vegetarian", "vegan", "chicken", "fish", "healthy"]
+
+  const filterKeys = ["all", "quick", "vegetarian", "vegan", "chicken", "fish", "healthy"]
   const filtered = filter === "all" ? menus : menus.filter(m => m.tags.includes(filter))
 
   const selectMenu = (menu: Menu) => {
@@ -435,7 +507,7 @@ function WeekEditor({ week, menus, onUpdate, onConfirm, isComplete }: {
             <div style={{ fontSize: 10, color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase" }}>{s.day.slice(0, 3)}</div>
             <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text)", margin: "1px 0" }}>{s.date}</div>
             <div style={{ fontSize: 11, color: s.menu ? "var(--green)" : s.skipped ? "var(--orange)" : "var(--text-muted)" }}>
-              {s.skipped ? "skip" : s.menu ? "ok" : "-"}
+              {s.skipped ? t("weekly.skip").toLowerCase() : s.menu ? "ok" : "-"}
             </div>
           </button>
         ))}
@@ -453,39 +525,39 @@ function WeekEditor({ week, menus, onUpdate, onConfirm, isComplete }: {
               {week.selections[activeDay].menu!.name}
             </p>
           )}
-          {week.selections[activeDay].skipped && <p style={{ color: "var(--text-muted)", marginTop: 2, fontSize: 13 }}>Skipped</p>}
+          {week.selections[activeDay].skipped && <p style={{ color: "var(--text-muted)", marginTop: 2, fontSize: 13 }}>{t("weekly.skipped")}</p>}
           {!week.selections[activeDay].menu && !week.selections[activeDay].skipped && (
-            <p style={{ color: "var(--text-muted)", marginTop: 2, fontSize: 13 }}>Pick a recipe below</p>
+            <p style={{ color: "var(--text-muted)", marginTop: 2, fontSize: 13 }}>{t("weekly.pickRecipe")}</p>
           )}
         </div>
         <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-          <button onClick={skipDay} style={{ padding: "6px 12px", borderRadius: 999, border: "1px solid var(--border)", background: "var(--white)", cursor: "pointer", fontSize: 12, color: "var(--text-muted)" }}>Skip</button>
+          <button onClick={skipDay} style={{ padding: "6px 12px", borderRadius: 999, border: "1px solid var(--border)", background: "var(--white)", cursor: "pointer", fontSize: 12, color: "var(--text-muted)" }}>
+            {t("weekly.skip")}
+          </button>
           {(week.selections[activeDay].menu || week.selections[activeDay].skipped) && (
-            <button onClick={clearDay} style={{ padding: "6px 12px", borderRadius: 999, border: "1px solid var(--border)", background: "var(--white)", cursor: "pointer", fontSize: 12, color: "var(--text-muted)" }}>Clear</button>
+            <button onClick={clearDay} style={{ padding: "6px 12px", borderRadius: 999, border: "1px solid var(--border)", background: "var(--white)", cursor: "pointer", fontSize: 12, color: "var(--text-muted)" }}>
+              {t("weekly.clear")}
+            </button>
           )}
         </div>
       </div>
 
       <div style={{ display: "flex", gap: 6, marginBottom: 14, overflowX: "auto", paddingBottom: 4 }}>
-        {filters.map(f => (
+        {filterKeys.map(f => (
           <button key={f} onClick={() => setFilter(f)} style={{
             padding: "5px 12px", borderRadius: 999, cursor: "pointer", fontSize: 12,
             border: filter === f ? "none" : "1px solid var(--border)",
             background: filter === f ? "var(--orange)" : "var(--white)",
             color: filter === f ? "#fff" : "var(--text)",
             fontWeight: filter === f ? 600 : 400, textTransform: "capitalize", flexShrink: 0, whiteSpace: "nowrap"
-          }}>{f === "all" ? "All" : f}</button>
+          }}>{t(`filters.${f}`)}</button>
         ))}
       </div>
 
       {menus.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "40px 0", color: "var(--text-muted)" }}>
-          Loading recipes...
-        </div>
+        <div style={{ textAlign: "center", padding: "40px 0", color: "var(--text-muted)" }}>{t("emptyStates.loadingRecipes")}</div>
       ) : filtered.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "40px 0", color: "var(--text-muted)" }}>
-          No recipes match this filter.
-        </div>
+        <div style={{ textAlign: "center", padding: "40px 0", color: "var(--text-muted)" }}>{t("emptyStates.noRecipesFilter")}</div>
       ) : (
         <div className="grid-auto" style={{ marginBottom: 20 }}>
           {filtered.map(menu => (
@@ -500,28 +572,27 @@ function WeekEditor({ week, menus, onUpdate, onConfirm, isComplete }: {
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 14, borderTop: "1px solid var(--border)", gap: 12, flexWrap: "wrap" }}>
         <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
-          {week.selections.filter(s => s.menu || s.skipped).length}/7 days planned{isComplete && " — ready!"}
+          {week.selections.filter(s => s.menu || s.skipped).length}/7 {t("weekly.daysPlanned")}{isComplete && ` — ${t("weekly.ready")}`}
         </p>
         <button onClick={onConfirm} disabled={!isComplete} style={{
-          background: isComplete ? "var(--green)" : "var(--border)",
+          background: isComplete ? (isEditing ? "var(--orange)" : "var(--green)") : "var(--border)",
           color: isComplete ? "#fff" : "var(--text-muted)",
           border: "none", borderRadius: 999, padding: "11px 24px",
           fontSize: 14, fontWeight: 700, cursor: isComplete ? "pointer" : "not-allowed", transition: "all 0.2s"
-        }}>Confirm week</button>
+        }}>
+          {isEditing ? t("weekly.saveChanges") : t("weekly.confirmWeek")}
+        </button>
       </div>
     </div>
   )
 }
 
 function IngredientsTab({ weeks }: { weeks: Week[] }) {
+  const { t } = useTranslation()
   const [selectedWeekIds, setSelectedWeekIds] = useState<number[]>([0])
 
   const toggleWeek = (id: number) => {
-    setSelectedWeekIds(prev =>
-      prev.includes(id)
-        ? prev.filter(w => w !== id)
-        : [...prev, id].sort()
-    )
+    setSelectedWeekIds(prev => prev.includes(id) ? prev.filter(w => w !== id) : [...prev, id].sort())
   }
 
   const selectedWeeks = weeks.filter(w => selectedWeekIds.includes(w.id))
@@ -538,11 +609,7 @@ function IngredientsTab({ weeks }: { weeks: Week[] }) {
           merged[key].amount += ing.amount
           merged[key].days.push(`${s.day.slice(0, 3)} (${week.label.split(" ")[0]})`)
         } else {
-          merged[key] = {
-            ...ing,
-            days: [`${s.day.slice(0, 3)} (${week.label.split(" ")[0]})`],
-            weekLabel: week.label
-          }
+          merged[key] = { ...ing, days: [`${s.day.slice(0, 3)} (${week.label.split(" ")[0]})`], weekLabel: week.label }
         }
       })
     })
@@ -560,18 +627,16 @@ function IngredientsTab({ weeks }: { weeks: Week[] }) {
   return (
     <div>
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.02em", marginBottom: 4 }}>Shopping list</h1>
+        <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.02em", marginBottom: 4 }}>{t("ingredients.title")}</h1>
         <p style={{ color: "var(--text-muted)", fontSize: 14 }}>
           {selectedWeekIds.length === 0
-            ? "Select a week below to see ingredients"
-            : `${selectedMenus.length} meals · ${totalItems} ingredients`}
+            ? t("ingredients.selectWeekPrompt")
+            : `${selectedMenus.length} ${t("weekly.meals")} · ${totalItems} ${t("nav.ingredients").toLowerCase()}`}
         </p>
       </div>
 
       <div style={{ marginBottom: 24 }}>
-        <p style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 10 }}>
-          Select weeks to shop for:
-        </p>
+        <p style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 10 }}>{t("ingredients.selectWeeks")}</p>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {weeks.map(week => {
             const weekMenuCount = week.selections.filter(s => s.menu).length
@@ -596,11 +661,9 @@ function IngredientsTab({ weeks }: { weeks: Week[] }) {
                   </div>
                   <span style={{ fontWeight: 700, fontSize: 14 }}>{week.label}</span>
                 </div>
-                <div style={{ fontSize: 11, color: isSelected ? "rgba(255,255,255,0.8)" : "var(--text-muted)", paddingLeft: 26 }}>
-                  {week.dateRange}
-                </div>
+                <div style={{ fontSize: 11, color: isSelected ? "rgba(255,255,255,0.8)" : "var(--text-muted)", paddingLeft: 26 }}>{week.dateRange}</div>
                 <div style={{ fontSize: 11, color: isSelected ? "rgba(255,255,255,0.8)" : "var(--text-muted)", paddingLeft: 26, marginTop: 2 }}>
-                  {hasData ? `${weekMenuCount} meals planned` : "No meals planned yet"}
+                  {hasData ? `${weekMenuCount} ${t("ingredients.mealsCount")}` : t("ingredients.noMealsYet")}
                 </div>
               </button>
             )
@@ -608,13 +671,10 @@ function IngredientsTab({ weeks }: { weeks: Week[] }) {
         </div>
 
         {selectedWeekIds.length > 1 && (
-          <div style={{
-            marginTop: 12, padding: "10px 16px", background: "var(--green-pale)",
-            borderRadius: 10, border: "1px solid var(--green)", display: "flex", alignItems: "center", gap: 8
-          }}>
+          <div style={{ marginTop: 12, padding: "10px 16px", background: "var(--green-pale)", borderRadius: 10, border: "1px solid var(--green)", display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: 16 }}>🛒</span>
             <span style={{ fontSize: 13, color: "var(--green)", fontWeight: 600 }}>
-              Combined list for {selectedWeekIds.length} weeks — duplicate ingredients have been summed up
+              {t("ingredients.combinedList", { count: selectedWeekIds.length })}
             </span>
           </div>
         )}
@@ -623,12 +683,12 @@ function IngredientsTab({ weeks }: { weeks: Week[] }) {
       {selectedWeekIds.length === 0 ? (
         <div style={{ textAlign: "center", padding: "40px 0" }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>🛒</div>
-          <p style={{ color: "var(--text-muted)", fontSize: 15 }}>Select one or more weeks above to generate your shopping list.</p>
+          <p style={{ color: "var(--text-muted)", fontSize: 15 }}>{t("emptyStates.shoppingCart")}</p>
         </div>
       ) : selectedMenus.length === 0 ? (
         <div style={{ textAlign: "center", padding: "40px 0" }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>📅</div>
-          <p style={{ color: "var(--text-muted)", fontSize: 15 }}>No meals planned for the selected week(s) yet.</p>
+          <p style={{ color: "var(--text-muted)", fontSize: 15 }}>{t("emptyStates.noMealsPlanned")}</p>
         </div>
       ) : (
         <div className="grid-ingredients">
@@ -636,7 +696,7 @@ function IngredientsTab({ weeks }: { weeks: Week[] }) {
             <div key={cat} style={{ background: "var(--white)", borderRadius: "var(--radius)", border: "1px solid var(--border)", overflow: "hidden" }}>
               <div style={{ background: "var(--green-pale)", padding: "12px 18px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ fontSize: 18 }}>{catEmoji[cat] || "📦"}</span>
-                <span style={{ fontWeight: 700, textTransform: "capitalize", fontSize: 15 }}>{cat}</span>
+                <span style={{ fontWeight: 700, textTransform: "capitalize", fontSize: 15 }}>{t(`ingredients.categories.${cat}`)}</span>
                 <span style={{ marginLeft: "auto", background: "var(--green)", color: "#fff", borderRadius: 999, padding: "2px 10px", fontSize: 12 }}>{items.length}</span>
               </div>
               {items.map(ing => (
@@ -657,6 +717,7 @@ function IngredientsTab({ weeks }: { weeks: Week[] }) {
 }
 
 function NutritionTab({ selections }: { selections: DaySelection[] }) {
+  const { t } = useTranslation()
   const selectedDays = selections.filter(s => s.menu)
   const totals = selectedDays.reduce((acc, s) => ({
     calories: acc.calories + (s.menu?.calories || 0),
@@ -670,8 +731,8 @@ function NutritionTab({ selections }: { selections: DaySelection[] }) {
     return (
       <div style={{ textAlign: "center", padding: "60px 0" }}>
         <div style={{ fontSize: 56, marginBottom: 16 }}>📊</div>
-        <h2 style={{ fontSize: 22, marginBottom: 8 }}>No data yet</h2>
-        <p style={{ color: "var(--text-muted)", fontSize: 14 }}>Select some meals to see your nutrition breakdown.</p>
+        <h2 style={{ fontSize: 22, marginBottom: 8 }}>{t("nutrition.noData")}</h2>
+        <p style={{ color: "var(--text-muted)", fontSize: 14 }}>{t("nutrition.noDataSubtitle")}</p>
       </div>
     )
   }
@@ -679,15 +740,15 @@ function NutritionTab({ selections }: { selections: DaySelection[] }) {
   return (
     <div>
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.02em", marginBottom: 4 }}>Nutrition</h1>
-        <p style={{ color: "var(--text-muted)", fontSize: 14 }}>Based on {selectedDays.length} planned dinners</p>
+        <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.02em", marginBottom: 4 }}>{t("nutrition.title")}</h1>
+        <p style={{ color: "var(--text-muted)", fontSize: 14 }}>{t("nutrition.subtitle", { count: selectedDays.length })}</p>
       </div>
       <div className="grid-4" style={{ marginBottom: 24 }}>
         {[
-          { label: "Total calories", value: totals.calories, unit: "kcal", color: "var(--orange)", emoji: "🔥" },
-          { label: "Avg per dinner", value: avgCal, unit: "kcal", color: "var(--green)", emoji: "📈" },
-          { label: "Total protein", value: totals.protein, unit: "g", color: "#3b82f6", emoji: "💪" },
-          { label: "Total carbs", value: totals.carbs, unit: "g", color: "#f59e0b", emoji: "🌾" },
+          { label: t("nutrition.totalCalories"), value: totals.calories, unit: t("recipes.kcal"), color: "var(--orange)", emoji: "🔥" },
+          { label: t("nutrition.avgPerDinner"), value: avgCal, unit: t("recipes.kcal"), color: "var(--green)", emoji: "📈" },
+          { label: t("nutrition.totalProtein"), value: totals.protein, unit: "g", color: "#3b82f6", emoji: "💪" },
+          { label: t("nutrition.totalCarbs"), value: totals.carbs, unit: "g", color: "#f59e0b", emoji: "🌾" },
         ].map(card => (
           <div key={card.label} style={{ background: "var(--white)", borderRadius: "var(--radius)", border: "1px solid var(--border)", padding: "16px" }}>
             <div style={{ fontSize: 20, marginBottom: 6 }}>{card.emoji}</div>
@@ -699,7 +760,7 @@ function NutritionTab({ selections }: { selections: DaySelection[] }) {
         ))}
       </div>
       <div style={{ background: "var(--white)", borderRadius: "var(--radius)", border: "1px solid var(--border)", overflow: "hidden" }}>
-        <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--border)", fontWeight: 700, fontSize: 16 }}>Day by day</div>
+        <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--border)", fontWeight: 700, fontSize: 16 }}>{t("nutrition.dayByDay")}</div>
         {selectedDays.map(s => {
           const m = s.menu!
           const maxCal = Math.max(...selectedDays.map(x => x.menu?.calories || 0))
@@ -713,7 +774,7 @@ function NutritionTab({ selections }: { selections: DaySelection[] }) {
                   <p style={{ fontSize: 13, fontWeight: 500, marginTop: 2 }}>{m.name}</p>
                 </div>
                 <div style={{ fontWeight: 700, color: "var(--orange)", fontSize: 15, textAlign: "right", flexShrink: 0 }}>
-                  {m.calories}<span style={{ fontSize: 11, fontWeight: 400 }}> kcal</span>
+                  {m.calories}<span style={{ fontSize: 11, fontWeight: 400 }}> {t("recipes.kcal")}</span>
                 </div>
               </div>
               <div style={{ background: "var(--cream-dark)", borderRadius: 999, height: 6, overflow: "hidden", marginBottom: 4 }}>
@@ -733,6 +794,7 @@ function NutritionTab({ selections }: { selections: DaySelection[] }) {
 }
 
 function RecipesTab({ selections, menus }: { selections: DaySelection[], menus: Menu[] }) {
+  const { t } = useTranslation()
   const [search, setSearch] = useState("")
   const [selectedRecipe, setSelectedRecipe] = useState<Menu | null>(null)
   const todayIndex = Math.min(new Date().getDay() === 0 ? 6 : new Date().getDay() - 1, 6)
@@ -741,7 +803,7 @@ function RecipesTab({ selections, menus }: { selections: DaySelection[], menus: 
   const searchResults = search.length > 1
     ? menus.filter(m =>
         m.name.toLowerCase().includes(search.toLowerCase()) ||
-        m.tags.some(t => t.includes(search.toLowerCase())) ||
+        m.tags.some(tag => tag.includes(search.toLowerCase())) ||
         m.ingredients.some(i => i.name.toLowerCase().includes(search.toLowerCase()))
       )
     : []
@@ -750,8 +812,8 @@ function RecipesTab({ selections, menus }: { selections: DaySelection[], menus: 
     <div>
       {selectedRecipe && <RecipeModal menu={selectedRecipe} onClose={() => setSelectedRecipe(null)} />}
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.02em", marginBottom: 4 }}>Recipes</h1>
-        <p style={{ color: "var(--text-muted)", fontSize: 14 }}>Browse all recipes or find tonight dinner</p>
+        <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.02em", marginBottom: 4 }}>{t("recipes.title")}</h1>
+        <p style={{ color: "var(--text-muted)", fontSize: 14 }}>{t("recipes.subtitle")}</p>
       </div>
 
       {todaySelection?.menu && (
@@ -762,22 +824,22 @@ function RecipesTab({ selections, menus }: { selections: DaySelection[], menus: 
           <img src={todaySelection.menu.image_url} alt={todaySelection.menu.name}
             style={{ width: 70, height: 70, borderRadius: 10, objectFit: "cover", flexShrink: 0 }} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 3 }}>Tonight</p>
+            <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 3 }}>{t("recipes.tonight")}</p>
             <h2 style={{ color: "#fff", fontFamily: "Playfair Display, serif", fontSize: 18, fontWeight: 700, marginBottom: 4 }}>{todaySelection.menu.name}</h2>
             <div style={{ display: "flex", gap: 12 }}>
-              <span style={{ color: "rgba(255,255,255,0.8)", fontSize: 12 }}>{todaySelection.menu.cook_time} min</span>
-              <span style={{ color: "rgba(255,255,255,0.8)", fontSize: 12 }}>{todaySelection.menu.calories} kcal</span>
+              <span style={{ color: "rgba(255,255,255,0.8)", fontSize: 12 }}>{todaySelection.menu.cook_time} {t("recipes.min")}</span>
+              <span style={{ color: "rgba(255,255,255,0.8)", fontSize: 12 }}>{todaySelection.menu.calories} {t("recipes.kcal")}</span>
             </div>
           </div>
           <button onClick={() => setSelectedRecipe(todaySelection.menu)} style={{
             background: "#fff", color: "var(--green)", border: "none",
             borderRadius: 999, padding: "10px 18px", fontWeight: 700, fontSize: 13, cursor: "pointer", flexShrink: 0
-          }}>View recipe</button>
+          }}>{t("recipes.viewRecipe")}</button>
         </div>
       )}
 
       <div style={{ marginBottom: 20 }}>
-        <input type="text" placeholder="Search recipes..."
+        <input type="text" placeholder={t("recipes.searchPlaceholder")}
           value={search} onChange={e => setSearch(e.target.value)}
           style={{
             width: "100%", padding: "12px 18px", borderRadius: 999,
@@ -797,15 +859,15 @@ function RecipesTab({ selections, menus }: { selections: DaySelection[], menus: 
             <div style={{ padding: "12px 14px", minWidth: 0 }}>
               <p style={{ fontFamily: "Playfair Display, serif", fontWeight: 600, fontSize: 14, marginBottom: 3 }}>{menu.name}</p>
               <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
-                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{menu.cook_time} min</span>
-                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{menu.calories} kcal</span>
+                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{menu.cook_time} {t("recipes.min")}</span>
+                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{menu.calories} {t("recipes.kcal")}</span>
               </div>
               <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                {menu.tags.slice(0, 2).map(t => (
-                  <span key={t} style={{
+                {menu.tags.slice(0, 2).map(tag => (
+                  <span key={tag} style={{
                     background: "var(--green-pale)", color: "var(--green)",
                     fontSize: 10, padding: "2px 7px", borderRadius: 999, textTransform: "capitalize", fontWeight: 600
-                  }}>{t}</span>
+                  }}>{tag}</span>
                 ))}
               </div>
             </div>
