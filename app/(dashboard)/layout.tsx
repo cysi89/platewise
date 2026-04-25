@@ -1,10 +1,9 @@
 ﻿"use client"
 import { useState, useEffect } from "react"
 import { DAYS, DaySelection, Menu, Ingredient } from "@/lib/types"
-import { MOCK_MENUS } from "@/lib/mockMenus"
 import MenuCard from "@/components/MenuCard"
 import RecipeModal from "@/components/RecipeModal"
-import { supabase, saveWeekSelections, loadWeekSelections } from "@/lib/supabase"
+import { supabase, saveWeekSelections, loadWeekSelections, fetchAllRecipes, cleanupOldSelections } from "@/lib/supabase"
 
 function getMondayForOffset(weekOffset: number): Date {
   const now = new Date()
@@ -70,6 +69,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [tab, setTab] = useState(0)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [weeks, setWeeks] = useState<Week[]>(buildWeeks())
+  const [menus, setMenus] = useState<Menu[]>([])
   const [userId, setUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const tabs = ["This Week", "Ingredients", "Nutrition", "Recipes"]
@@ -80,6 +80,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       if (!user) { window.location.href = "/login"; return }
       setUserId(user.id)
 
+      // Load recipes from Supabase
+      const recipes = await fetchAllRecipes()
+      if (recipes.length > 0) setMenus(recipes)
+
+      // Load saved selections
       const saved = await loadWeekSelections(user.id)
       if (saved.length > 0) {
         setWeeks(prev => prev.map(week => {
@@ -89,12 +94,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           const selections = week.selections.map((s, i) => {
             const row = weekRows.find((r: any) => r.day_index === i)
             if (!row) return s
-            const menu = row.menu_id ? MOCK_MENUS.find(m => m.id === row.menu_id) || null : null
+            const menu = row.menu_id ? recipes.find(m => m.id === row.menu_id) || null : null
             return { ...s, menu, skipped: row.skipped }
           })
           return { ...week, selections, confirmed }
         }))
       }
+
+      await cleanupOldSelections(user.id)
       setLoading(false)
     }
     init()
@@ -243,17 +250,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       `}</style>
 
       <main style={{ maxWidth: 1200, margin: "0 auto", padding: "24px 16px 80px" }}>
-        {tab === 0 && <WeeklyTab weeks={weeks} updateWeek={updateWeek} confirmWeek={confirmWeek} toggleExpand={toggleExpand} />}
+        {tab === 0 && <WeeklyTab weeks={weeks} menus={menus} updateWeek={updateWeek} confirmWeek={confirmWeek} toggleExpand={toggleExpand} />}
         {tab === 1 && <IngredientsTab weeks={weeks} />}
         {tab === 2 && <NutritionTab selections={allSelections} />}
-        {tab === 3 && <RecipesTab selections={weeks[0].selections} />}
+        {tab === 3 && <RecipesTab selections={weeks[0].selections} menus={menus} />}
       </main>
     </div>
   )
 }
 
-function WeeklyTab({ weeks, updateWeek, confirmWeek, toggleExpand }: {
+function WeeklyTab({ weeks, menus, updateWeek, confirmWeek, toggleExpand }: {
   weeks: Week[]
+  menus: Menu[]
   updateWeek: (id: number, s: DaySelection[]) => void
   confirmWeek: (id: number) => void
   toggleExpand: (id: number) => void
@@ -323,7 +331,7 @@ function WeeklyTab({ weeks, updateWeek, confirmWeek, toggleExpand }: {
 
               {week.expanded && !week.confirmed && (
                 <div style={{ borderTop: "1px solid var(--border)", padding: "16px" }}>
-                  <WeekEditor week={week} onUpdate={(s) => updateWeek(week.id, s)} onConfirm={() => confirmWeek(week.id)} isComplete={isComplete} />
+                  <WeekEditor week={week} menus={menus} onUpdate={(s) => updateWeek(week.id, s)} onConfirm={() => confirmWeek(week.id)} isComplete={isComplete} />
                 </div>
               )}
             </div>
@@ -386,13 +394,17 @@ function WeekReadOnly({ week }: { week: Week }) {
   )
 }
 
-function WeekEditor({ week, onUpdate, onConfirm, isComplete }: {
-  week: Week; onUpdate: (s: DaySelection[]) => void; onConfirm: () => void; isComplete: boolean
+function WeekEditor({ week, menus, onUpdate, onConfirm, isComplete }: {
+  week: Week
+  menus: Menu[]
+  onUpdate: (s: DaySelection[]) => void
+  onConfirm: () => void
+  isComplete: boolean
 }) {
   const [activeDay, setActiveDay] = useState(0)
   const [filter, setFilter] = useState("all")
   const filters = ["all", "quick", "vegetarian", "vegan", "chicken", "fish", "healthy"]
-  const filtered = filter === "all" ? MOCK_MENUS : MOCK_MENUS.filter(m => m.tags.includes(filter))
+  const filtered = filter === "all" ? menus : menus.filter(m => m.tags.includes(filter))
 
   const selectMenu = (menu: Menu) => {
     const updated = [...week.selections]
@@ -466,15 +478,25 @@ function WeekEditor({ week, onUpdate, onConfirm, isComplete }: {
         ))}
       </div>
 
-      <div className="grid-auto" style={{ marginBottom: 20 }}>
-        {filtered.map(menu => (
-          <MenuCard key={menu.id} menu={menu}
-            selected={week.selections[activeDay].menu?.id === menu.id}
-            onSelect={() => selectMenu(menu)}
-            onDeselect={clearDay}
-          />
-        ))}
-      </div>
+      {menus.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "40px 0", color: "var(--text-muted)" }}>
+          Loading recipes...
+        </div>
+      ) : filtered.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "40px 0", color: "var(--text-muted)" }}>
+          No recipes match this filter.
+        </div>
+      ) : (
+        <div className="grid-auto" style={{ marginBottom: 20 }}>
+          {filtered.map(menu => (
+            <MenuCard key={menu.id} menu={menu}
+              selected={week.selections[activeDay].menu?.id === menu.id}
+              onSelect={() => selectMenu(menu)}
+              onDeselect={clearDay}
+            />
+          ))}
+        </div>
+      )}
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 14, borderTop: "1px solid var(--border)", gap: 12, flexWrap: "wrap" }}>
         <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
@@ -546,7 +568,6 @@ function IngredientsTab({ weeks }: { weeks: Week[] }) {
         </p>
       </div>
 
-      {/* Week selector — multi-select checkboxes */}
       <div style={{ marginBottom: 24 }}>
         <p style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 10 }}>
           Select weeks to shop for:
@@ -557,22 +578,17 @@ function IngredientsTab({ weeks }: { weeks: Week[] }) {
             const isSelected = selectedWeekIds.includes(week.id)
             const hasData = weekMenuCount > 0
             return (
-              <button
-                key={week.id}
-                onClick={() => toggleWeek(week.id)}
-                disabled={!hasData}
-                style={{
-                  padding: "10px 18px", borderRadius: 12, cursor: hasData ? "pointer" : "not-allowed",
-                  border: isSelected ? "2px solid var(--green)" : "2px solid var(--border)",
-                  background: isSelected ? "var(--green)" : "var(--white)",
-                  color: isSelected ? "#fff" : hasData ? "var(--text)" : "var(--text-muted)",
-                  opacity: hasData ? 1 : 0.5,
-                  transition: "all 0.15s", textAlign: "left", minWidth: 160
-                }}
-              >
+              <button key={week.id} onClick={() => toggleWeek(week.id)} disabled={!hasData} style={{
+                padding: "10px 18px", borderRadius: 12, cursor: hasData ? "pointer" : "not-allowed",
+                border: isSelected ? "2px solid var(--green)" : "2px solid var(--border)",
+                background: isSelected ? "var(--green)" : "var(--white)",
+                color: isSelected ? "#fff" : hasData ? "var(--text)" : "var(--text-muted)",
+                opacity: hasData ? 1 : 0.5, transition: "all 0.15s", textAlign: "left", minWidth: 160
+              }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
                   <div style={{
-                    width: 18, height: 18, borderRadius: 4, border: isSelected ? "none" : "2px solid var(--border)",
+                    width: 18, height: 18, borderRadius: 4,
+                    border: isSelected ? "none" : "2px solid var(--border)",
                     background: isSelected ? "rgba(255,255,255,0.3)" : "transparent",
                     display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0
                   }}>
@@ -649,6 +665,7 @@ function NutritionTab({ selections }: { selections: DaySelection[] }) {
     fat: acc.fat + (s.menu?.fat || 0),
   }), { calories: 0, protein: 0, carbs: 0, fat: 0 })
   const avgCal = selectedDays.length ? Math.round(totals.calories / selectedDays.length) : 0
+
   if (selectedDays.length === 0) {
     return (
       <div style={{ textAlign: "center", padding: "60px 0" }}>
@@ -658,6 +675,7 @@ function NutritionTab({ selections }: { selections: DaySelection[] }) {
       </div>
     )
   }
+
   return (
     <div>
       <div style={{ marginBottom: 24 }}>
@@ -714,18 +732,20 @@ function NutritionTab({ selections }: { selections: DaySelection[] }) {
   )
 }
 
-function RecipesTab({ selections }: { selections: DaySelection[] }) {
+function RecipesTab({ selections, menus }: { selections: DaySelection[], menus: Menu[] }) {
   const [search, setSearch] = useState("")
   const [selectedRecipe, setSelectedRecipe] = useState<Menu | null>(null)
   const todayIndex = Math.min(new Date().getDay() === 0 ? 6 : new Date().getDay() - 1, 6)
   const todaySelection = selections[todayIndex]
+
   const searchResults = search.length > 1
-    ? MOCK_MENUS.filter(m =>
+    ? menus.filter(m =>
         m.name.toLowerCase().includes(search.toLowerCase()) ||
         m.tags.some(t => t.includes(search.toLowerCase())) ||
         m.ingredients.some(i => i.name.toLowerCase().includes(search.toLowerCase()))
       )
     : []
+
   return (
     <div>
       {selectedRecipe && <RecipeModal menu={selectedRecipe} onClose={() => setSelectedRecipe(null)} />}
@@ -733,6 +753,7 @@ function RecipesTab({ selections }: { selections: DaySelection[] }) {
         <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.02em", marginBottom: 4 }}>Recipes</h1>
         <p style={{ color: "var(--text-muted)", fontSize: 14 }}>Browse all recipes or find tonight dinner</p>
       </div>
+
       {todaySelection?.menu && (
         <div style={{
           background: "var(--green)", borderRadius: "var(--radius)", padding: "18px 20px",
@@ -754,6 +775,7 @@ function RecipesTab({ selections }: { selections: DaySelection[] }) {
           }}>View recipe</button>
         </div>
       )}
+
       <div style={{ marginBottom: 20 }}>
         <input type="text" placeholder="Search recipes..."
           value={search} onChange={e => setSearch(e.target.value)}
@@ -764,8 +786,9 @@ function RecipesTab({ selections }: { selections: DaySelection[] }) {
             fontFamily: "DM Sans, sans-serif", color: "var(--text)"
           }} />
       </div>
+
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
-        {(search.length > 1 ? searchResults : MOCK_MENUS).map(menu => (
+        {(search.length > 1 ? searchResults : menus).map(menu => (
           <div key={menu.id} style={{
             background: "var(--white)", borderRadius: "var(--radius)", border: "1px solid var(--border)",
             overflow: "hidden", display: "flex", cursor: "pointer"
