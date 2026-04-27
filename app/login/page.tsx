@@ -2,6 +2,7 @@
 import { useState } from "react"
 import { supabase } from "@/lib/supabase"
 import { useTranslation } from "react-i18next"
+import "@/lib/i18n"
 import LanguageToggle from "@/components/LanguageToggle"
 
 export default function LoginPage() {
@@ -47,24 +48,17 @@ export default function LoginPage() {
             fontFamily: "Playfair Display, serif", fontSize: 36, fontWeight: 700,
             color: "var(--green)", letterSpacing: "-0.02em", marginBottom: 8
           }}>Genie</h1>
-          <p style={{ color: "var(--text-muted)", fontSize: 15, marginBottom: 16 }}>{t("login.tagline")}</p>
+          <p suppressHydrationWarning style={{ color: "var(--text-muted)", fontSize: 15, marginBottom: 16 }}>
+            {t("login.tagline")}
+          </p>
           <div style={{ display: "flex", justifyContent: "center" }}>
-            <div style={{
-              display: "flex", background: "var(--cream-dark)",
-              borderRadius: 999, padding: 2, border: "1px solid var(--border)"
-            }}>
-              {["en", "it"].map(lang => {
-                const { i18n } = require("react-i18next").useTranslation ? { i18n: { language: "en", changeLanguage: () => {} } } : { i18n: { language: "en", changeLanguage: () => {} } }
-                return null
-              })}
-            </div>
-            <LanguageToggleLogin />
+            <LanguageToggle />
           </div>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div>
-            <label style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", display: "block", marginBottom: 6 }}>
+            <label suppressHydrationWarning style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", display: "block", marginBottom: 6 }}>
               {t("login.email")}
             </label>
             <input suppressHydrationWarning type="email" value={email}
@@ -78,7 +72,7 @@ export default function LoginPage() {
               }} />
           </div>
           <div>
-            <label style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", display: "block", marginBottom: 6 }}>
+            <label suppressHydrationWarning style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", display: "block", marginBottom: 6 }}>
               {t("login.password")}
             </label>
             <input suppressHydrationWarning type="password" value={password}
@@ -96,7 +90,7 @@ export default function LoginPage() {
           {error && <p style={{ color: "#dc2626", fontSize: 13, background: "#fef2f2", padding: "10px 14px", borderRadius: 8 }}>{error}</p>}
           {message && <p style={{ color: "var(--green)", fontSize: 13, background: "var(--green-pale)", padding: "10px 14px", borderRadius: 8 }}>{message}</p>}
 
-          <button onClick={handleAuth} disabled={loading || !email || !password} style={{
+          <button suppressHydrationWarning onClick={handleAuth} disabled={loading || !email || !password} style={{
             background: "var(--green)", color: "#fff", border: "none", borderRadius: 12,
             padding: "14px", fontSize: 16, fontWeight: 700,
             cursor: loading ? "not-allowed" : "pointer",
@@ -106,7 +100,7 @@ export default function LoginPage() {
             {loading ? t("login.pleaseWait") : isSignUp ? t("login.createAccount") : t("login.signIn")}
           </button>
 
-          <button onClick={() => { setIsSignUp(!isSignUp); setError(""); setMessage("") }} style={{
+          <button suppressHydrationWarning onClick={() => { setIsSignUp(!isSignUp); setError(""); setMessage("") }} style={{
             background: "transparent", border: "none", color: "var(--text-muted)",
             fontSize: 14, cursor: "pointer", padding: "4px", fontFamily: "DM Sans, sans-serif"
           }}>
@@ -114,31 +108,6 @@ export default function LoginPage() {
           </button>
         </div>
       </div>
-    </div>
-  )
-}
-
-function LanguageToggleLogin() {
-  const { i18n } = useTranslation()
-  const current = i18n.language?.startsWith("it") ? "it" : "en"
-  const toggle = (lang: string) => {
-    i18n.changeLanguage(lang)
-    localStorage.setItem("genie-language", lang)
-  }
-  return (
-    <div style={{
-      display: "flex", background: "var(--cream-dark)",
-      borderRadius: 999, padding: 2, border: "1px solid var(--border)"
-    }}>
-      {["en", "it"].map(lang => (
-        <button key={lang} onClick={() => toggle(lang)} style={{
-          background: current === lang ? "var(--green)" : "transparent",
-          color: current === lang ? "#fff" : "var(--text-muted)",
-          border: "none", borderRadius: 999, padding: "5px 14px",
-          fontSize: 12, fontWeight: 700, cursor: "pointer",
-          transition: "all 0.15s", textTransform: "uppercase"
-        }}>{lang}</button>
-      ))}
     </div>
   )
 }
