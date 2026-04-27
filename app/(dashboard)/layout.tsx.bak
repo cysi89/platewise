@@ -1,8 +1,7 @@
-"use client"
+﻿"use client"
 import { useState, useEffect } from "react"
 import { useTranslation } from "react-i18next"
 import "@/lib/i18n"
-import i18n from "@/lib/i18n"
 import { DAYS, DaySelection, Menu, Ingredient } from "@/lib/types"
 import MenuCard from "@/components/MenuCard"
 import RecipeModal from "@/components/RecipeModal"
@@ -23,6 +22,12 @@ function getMondayForOffset(weekOffset: number): Date {
 
 function formatDate(d: Date) {
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" })
+}
+
+function getMondayForOffsetLabel(offset: number, t: any): string {
+  if (offset === 0) return t("weekly.thisWeek")
+  if (offset === 1) return t("weekly.nextWeek")
+  return t("weekly.weekAfter")
 }
 
 function getWeekDateRange(weekOffset: number): string {
@@ -56,7 +61,7 @@ function buildWeeks(t: any): Week[] {
   return [0, 1, 2].map(offset => ({
     id: offset,
     weekOffset: offset,
-    label: offset === 0 ? t("weekly.thisWeek") : offset === 1 ? t("weekly.nextWeek") : t("weekly.weekAfter"),
+    label: getMondayForOffsetLabel(offset, t),
     dateRange: getWeekDateRange(offset),
     selections: makeWeek(offset),
     confirmed: false,
@@ -73,11 +78,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [menus, setMenus] = useState<Menu[]>([])
   const [userId, setUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [mounted, setMounted] = useState(false)
 
-  const tabs = mounted
-    ? [t("nav.thisWeek"), t("nav.ingredients"), t("nav.nutrition"), t("nav.recipes")]
-    : ["This Week", "Ingredients", "Nutrition", "Recipes"]
+  const tabs = [
+    t("nav.thisWeek"),
+    t("nav.ingredients"),
+    t("nav.nutrition"),
+    t("nav.recipes"),
+  ]
 
   useEffect(() => {
     const init = async () => {
@@ -85,8 +92,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       if (!user) { window.location.href = "/login"; return }
       setUserId(user.id)
 
-      const lang = localStorage.getItem("genie-language") || "en"
-      const recipes = await fetchAllRecipes(lang)
+      const recipes = await fetchAllRecipes()
       if (recipes.length > 0) setMenus(recipes)
 
       const saved = await loadWeekSelections(user.id)
@@ -106,28 +112,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       }
 
       await cleanupOldSelections(user.id)
-      setMounted(true)
       setLoading(false)
     }
     init()
-
-    // Reload recipes when language changes
-    const onLangChange = async (lang: string) => {
-      const newRecipes = await fetchAllRecipes(lang)
-      if (newRecipes.length > 0) {
-        setMenus(newRecipes)
-        // Update week selections to use new language recipe names
-        setWeeks(prev => prev.map(week => ({
-          ...week,
-          label: week.weekOffset === 0 ? i18n.t("weekly.thisWeek") : week.weekOffset === 1 ? i18n.t("weekly.nextWeek") : i18n.t("weekly.weekAfter"),
-          selections: week.selections.map(s => ({
-            ...s,
-            menu: s.menu ? newRecipes.find(m => m.id === s.menu!.id) || s.menu : null
-          }))
-        })))
-      }
-    }
-    i18n.on("languageChanged", onLangChange)
 
     const interval = setInterval(() => {
       const now = new Date()
@@ -136,10 +123,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       }
     }, 60000)
 
-    return () => {
-      clearInterval(interval)
-      i18n.off("languageChanged", onLangChange)
-    }
+    return () => clearInterval(interval)
   }, [])
 
   const updateWeek = (weekId: number, selections: DaySelection[]) => {
@@ -214,7 +198,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div style={{ textAlign: "center" }}>
           <img src="/images/genie-logo.png" alt="Genie" style={{ height: 60, marginBottom: 16, opacity: 0.7 }}
             onError={e => { (e.target as HTMLImageElement).style.display = "none" }} />
-          <p suppressHydrationWarning style={{ color: "var(--text-muted)", fontFamily: "DM Sans, sans-serif" }}>Loading your plan...</p>
+          <p style={{ color: "var(--text-muted)", fontFamily: "DM Sans, sans-serif" }}>{t("loading")}</p>
         </div>
       </div>
     )
@@ -223,54 +207,42 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div style={{ minHeight: "100vh", background: "var(--cream)" }}>
       <header style={{
-        background: "var(--green)", padding: "0",
-        position: "sticky", top: 0, zIndex: 100,
+        background: "var(--green)", padding: "0 16px",
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        height: 60, position: "sticky", top: 0, zIndex: 100,
         boxShadow: "0 2px 12px rgba(0,0,0,0.15)"
       }}>
-        {/* Inner constrained row — aligns with content below */}
-        <div style={{
-          maxWidth: 1200, margin: "0 auto", padding: "0 16px",
-          height: 70, display: "flex", alignItems: "center", justifyContent: "space-between"
-        }}>
-          {/* Logo block — full height bar */}
-          <div style={{ display: "flex", alignItems: "center", gap: 0, height: "100%", marginLeft: -16 }}>
-            <div style={{
-              height: "100%", padding: "0 16px",
-              background: "rgba(0,0,0,0.15)",
-              display: "flex", alignItems: "center", gap: 10
-            }}>
-              <img src="/images/genie-logo.png" alt="Genie"
-                style={{ height: 48, objectFit: "contain" }}
-                onError={e => { (e.target as HTMLImageElement).style.display = "none" }} />
-              <span style={{ fontFamily: "Playfair Display, serif", color: "#fff", fontSize: 22, fontWeight: 700, whiteSpace: "nowrap" }}>Genie</span>
-            </div>
-          </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <img src="/images/genie-logo.png" alt="Genie"
+            style={{ height: 32, objectFit: "contain" }}
+            onError={e => { (e.target as HTMLImageElement).style.display = "none" }} />
+          <span style={{ fontFamily: "Playfair Display, serif", color: "#fff", fontSize: 20, fontWeight: 700 }}>Genie</span>
+        </div>
 
-          <nav style={{ display: "flex", gap: 4 }} className="desktop-nav">
-            {tabs.map((tab_label, i) => (
-              <button key={i} onClick={() => setTab(i)} style={{
-                background: tab === i ? "rgba(255,255,255,0.2)" : "transparent",
-                border: tab === i ? "1px solid rgba(255,255,255,0.4)" : "1px solid transparent",
-                color: "#fff", padding: "7px 14px", borderRadius: 999,
-                cursor: "pointer", fontSize: 13, fontWeight: 500, transition: "all 0.15s", whiteSpace: "nowrap"
-              }}>{tab_label}</button>
-            ))}
-          </nav>
+        <nav style={{ display: "flex", gap: 4 }} className="desktop-nav">
+          {tabs.map((tab_label, i) => (
+            <button key={i} onClick={() => setTab(i)} style={{
+              background: tab === i ? "rgba(255,255,255,0.2)" : "transparent",
+              border: tab === i ? "1px solid rgba(255,255,255,0.4)" : "1px solid transparent",
+              color: "#fff", padding: "7px 14px", borderRadius: 999,
+              cursor: "pointer", fontSize: 13, fontWeight: 500, transition: "all 0.15s", whiteSpace: "nowrap"
+            }}>{tab_label}</button>
+          ))}
+        </nav>
 
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <LanguageToggle />
-            <button onClick={handleSignOut} style={{
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <LanguageToggle />
+          <button onClick={handleSignOut} style={{
+            background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)",
+            borderRadius: 999, padding: "6px 12px", color: "#fff", fontSize: 12,
+            cursor: "pointer", fontFamily: "DM Sans, sans-serif", whiteSpace: "nowrap"
+          }}>{t("nav.signOut")}</button>
+          <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            style={{
               background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)",
-              borderRadius: 999, padding: "6px 12px", color: "#fff", fontSize: 12,
-              cursor: "pointer", fontFamily: "DM Sans, sans-serif", whiteSpace: "nowrap"
-            }}>{t("nav.signOut")}</button>
-            <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              style={{
-                background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)",
-                borderRadius: 8, padding: "6px 10px", color: "#fff", fontSize: 18,
-                cursor: "pointer", display: "none"
-              }} className="hamburger">☰</button>
-          </div>
+              borderRadius: 8, padding: "6px 10px", color: "#fff", fontSize: 18,
+              cursor: "pointer", display: "none"
+            }} className="hamburger">☰</button>
         </div>
       </header>
 
@@ -502,6 +474,7 @@ function WeekEditor({ week, menus, onUpdate, onConfirm, isComplete, isEditing }:
   const { t } = useTranslation()
   const [activeDay, setActiveDay] = useState(0)
   const [filter, setFilter] = useState("all")
+
   const filterKeys = ["all", "quick", "vegetarian", "vegan", "chicken", "fish", "healthy"]
   const filtered = filter === "all" ? menus : menus.filter(m => m.tags.includes(filter))
 
@@ -617,15 +590,9 @@ function WeekEditor({ week, menus, onUpdate, onConfirm, isComplete, isEditing }:
 function IngredientsTab({ weeks }: { weeks: Week[] }) {
   const { t } = useTranslation()
   const [selectedWeekIds, setSelectedWeekIds] = useState<number[]>([0])
-  const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({})
 
   const toggleWeek = (id: number) => {
     setSelectedWeekIds(prev => prev.includes(id) ? prev.filter(w => w !== id) : [...prev, id].sort())
-    setCheckedItems({}) // reset checkboxes when changing weeks
-  }
-
-  const toggleItem = (key: string) => {
-    setCheckedItems(prev => ({ ...prev, [key]: !prev[key] }))
   }
 
   const selectedWeeks = weeks.filter(w => selectedWeekIds.includes(w.id))
@@ -656,22 +623,6 @@ function IngredientsTab({ weeks }: { weeks: Week[] }) {
 
   const catEmoji: Record<string, string> = { protein: "🥩", vegetable: "🥦", pantry: "🫙", dairy: "🧀", grain: "🌾" }
   const totalItems = Object.values(merged).length
-  const checkedCount = Object.values(checkedItems).filter(Boolean).length
-  const remainingCount = totalItems - checkedCount
-
-  // Avg calories per planned day
-  const plannedDays = selections.filter(s => s.menu)
-  const avgCalories = plannedDays.length > 0
-    ? Math.round(plannedDays.reduce((sum, s) => sum + (s.menu?.calories || 0), 0) / plannedDays.length)
-    : 0
-
-  // Rough cost estimate (avg Italian supermarket prices per category per serving)
-  const costPerUnit: Record<string, number> = {
-    protein: 3.5, vegetable: 0.8, pantry: 0.5, dairy: 1.2, grain: 0.6
-  }
-  const estimatedCost = Object.values(merged).reduce((sum, ing) => {
-    return sum + (costPerUnit[ing.category] || 0.8)
-  }, 0)
 
   return (
     <div>
@@ -740,86 +691,26 @@ function IngredientsTab({ weeks }: { weeks: Week[] }) {
           <p style={{ color: "var(--text-muted)", fontSize: 15 }}>{t("emptyStates.noMealsPlanned")}</p>
         </div>
       ) : (
-        <>
-          {/* Summary stats bar */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 24 }}>
-            {[
-              { emoji: "🛒", label: "Items to buy", value: `${remainingCount} / ${totalItems}`, color: "var(--green)", sub: checkedCount > 0 ? `${checkedCount} ticked off` : "Tap items as you shop" },
-              { emoji: "💰", label: "Est. cost", value: `~€${estimatedCost.toFixed(0)}`, color: "var(--orange)", sub: "Rough supermarket estimate" },
-              { emoji: "🔥", label: "Avg kcal / day", value: avgCalories > 0 ? `${avgCalories} kcal` : "—", color: "#3b82f6", sub: `Over ${plannedDays.length} planned dinners` },
-            ].map(card => (
-              <div key={card.label} style={{ background: "var(--white)", borderRadius: "var(--radius)", border: "1px solid var(--border)", padding: "14px 18px", display: "flex", gap: 12, alignItems: "center" }}>
-                <span style={{ fontSize: 28 }}>{card.emoji}</span>
-                <div>
-                  <div style={{ fontSize: 20, fontWeight: 700, color: card.color }}>{card.value}</div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text)", marginTop: 1 }}>{card.label}</div>
-                  <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{card.sub}</div>
-                </div>
+        <div className="grid-ingredients">
+          {Object.entries(categories).map(([cat, items]) => (
+            <div key={cat} style={{ background: "var(--white)", borderRadius: "var(--radius)", border: "1px solid var(--border)", overflow: "hidden" }}>
+              <div style={{ background: "var(--green-pale)", padding: "12px 18px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 18 }}>{catEmoji[cat] || "📦"}</span>
+                <span style={{ fontWeight: 700, textTransform: "capitalize", fontSize: 15 }}>{t(`ingredients.categories.${cat}`)}</span>
+                <span style={{ marginLeft: "auto", background: "var(--green)", color: "#fff", borderRadius: 999, padding: "2px 10px", fontSize: 12 }}>{items.length}</span>
               </div>
-            ))}
-          </div>
-
-          {checkedCount > 0 && (
-            <div style={{ marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
-                {checkedCount} of {totalItems} items ticked off
-              </p>
-              <button onClick={() => setCheckedItems({})} style={{
-                background: "transparent", border: "1px solid var(--border)", borderRadius: 999,
-                padding: "4px 12px", fontSize: 12, color: "var(--text-muted)", cursor: "pointer"
-              }}>Reset all</button>
+              {items.map(ing => (
+                <div key={ing.name} style={{ padding: "10px 18px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <span style={{ fontWeight: 500, fontSize: 14 }}>{ing.name}</span>
+                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 1 }}>{ing.days.join(", ")}</div>
+                  </div>
+                  <span style={{ background: "var(--cream-dark)", borderRadius: 8, padding: "3px 10px", fontSize: 12, fontWeight: 600, flexShrink: 0 }}>{ing.amount} {ing.unit}</span>
+                </div>
+              ))}
             </div>
-          )}
-
-          <div className="grid-ingredients">
-            {Object.entries(categories).map(([cat, items]) => (
-              <div key={cat} style={{ background: "var(--white)", borderRadius: "var(--radius)", border: "1px solid var(--border)", overflow: "hidden" }}>
-                <div style={{ background: "var(--green-pale)", padding: "12px 18px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 18 }}>{catEmoji[cat] || "📦"}</span>
-                  <span style={{ fontWeight: 700, textTransform: "capitalize", fontSize: 15 }}>{t(`ingredients.categories.${cat}`)}</span>
-                  <span style={{ marginLeft: "auto", background: "var(--green)", color: "#fff", borderRadius: 999, padding: "2px 10px", fontSize: 12 }}>
-                    {items.filter(i => !checkedItems[i.name.toLowerCase()]).length}/{items.length}
-                  </span>
-                </div>
-                {items.map(ing => {
-                  const key = ing.name.toLowerCase()
-                  const bought = checkedItems[key] || false
-                  return (
-                    <div key={ing.name} onClick={() => toggleItem(key)} style={{
-                      padding: "10px 18px", borderBottom: "1px solid var(--border)",
-                      display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
-                      cursor: "pointer", transition: "background 0.15s",
-                      background: bought ? "#f8f8f8" : "var(--white)",
-                      opacity: bought ? 0.5 : 1
-                    }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-                        {/* Checkbox */}
-                        <div style={{
-                          width: 20, height: 20, borderRadius: 5, flexShrink: 0,
-                          border: bought ? "none" : "2px solid var(--border)",
-                          background: bought ? "var(--green)" : "transparent",
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          transition: "all 0.15s"
-                        }}>
-                          {bought && <span style={{ color: "#fff", fontSize: 12, fontWeight: 700 }}>✓</span>}
-                        </div>
-                        <div style={{ minWidth: 0 }}>
-                          <span style={{
-                            fontWeight: 500, fontSize: 14,
-                            textDecoration: bought ? "line-through" : "none",
-                            color: bought ? "var(--text-muted)" : "var(--text)"
-                          }}>{ing.name}</span>
-                          <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 1 }}>{ing.days.join(", ")}</div>
-                        </div>
-                      </div>
-                      <span style={{ background: bought ? "var(--cream-dark)" : "var(--green-pale)", borderRadius: 8, padding: "3px 10px", fontSize: 12, fontWeight: 600, flexShrink: 0, color: bought ? "var(--text-muted)" : "var(--green)" }}>{ing.amount} {ing.unit}</span>
-                    </div>
-                  )
-                })}
-              </div>
-            ))}
-          </div>
-        </>
+          ))}
+        </div>
       )}
     </div>
   )
