@@ -1,10 +1,8 @@
-import { createClient } from "@supabase/supabase-js"
+import { createClient, SupabaseClient } from "@supabase/supabase-js"
 import { Menu, Ingredient } from "./types"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-
-import { SupabaseClient } from "@supabase/supabase-js"
 
 declare global {
   var _supabaseClient: SupabaseClient | undefined
@@ -17,13 +15,12 @@ export const supabase = globalThis._supabaseClient ??
 
 export function getMondayDate(weekOffset: number = 0): string {
   const now = new Date()
-  const day = now.getDay()
-  const diff = (day === 0 ? -6 : 1) - day
+  const day = now.getDay() // 0=Sun, 1=Mon, 2=Tue ... 6=Sat
+  const daysToMonday = day === 0 ? 6 : day - 1 // days to subtract to reach Monday
   const monday = new Date(now)
-  monday.setDate(now.getDate() + diff + weekOffset * 7)
+  monday.setDate(now.getDate() - daysToMonday + weekOffset * 7)
   monday.setHours(0, 0, 0, 0)
-  // Return as YYYY-MM-DD string
-  return monday.toISOString().split("T")[0]
+  return monday.toISOString().split("T")[0] // YYYY-MM-DD
 }
 
 // ─── RECIPE FETCHING ───────────────────────────────────────────────────────────
@@ -102,21 +99,13 @@ export async function saveWeekSelections(
     .from("weekly_selections")
     .upsert(rows, { onConflict: "user_id,week_start_date,day_index" })
 
-  if (error) {
-    // Fallback to old constraint name if new one not yet applied
-    const { error: error2 } = await supabase
-      .from("weekly_selections")
-      .upsert(rows, { onConflict: "user_id,week_offset,day_index" })
-    if (error2) console.error("saveWeekSelections error:", error2)
-  }
+  if (error) console.error("saveWeekSelections error:", error)
 }
 
 export async function loadWeekSelections(userId: string) {
-  // Load the 3 weeks we currently show (this week + next 2)
   const weekDates = [0, 1, 2].map(offset => getMondayDate(offset))
 
-  // Try loading by week_start_date first (new system)
-  const { data: byDate, error: errorByDate } = await supabase
+  const { data, error } = await supabase
     .from("weekly_selections")
     .select("*")
     .eq("user_id", userId)
@@ -124,32 +113,22 @@ export async function loadWeekSelections(userId: string) {
     .order("week_start_date", { ascending: true })
     .order("day_index", { ascending: true })
 
-  if (!errorByDate && byDate && byDate.length > 0) {
-    // Map week_start_date back to current week_offset
-    return byDate.map((row: any) => ({
-      ...row,
-      week_offset: weekDates.indexOf(row.week_start_date)
-    }))
-  }
-
-  // Fallback: load by week_offset (old system — for existing data)
-  const { data, error } = await supabase
-    .from("weekly_selections")
-    .select("*")
-    .eq("user_id", userId)
-    .in("week_offset", [0, 1, 2])
-    .order("week_offset", { ascending: true })
-    .order("day_index", { ascending: true })
-
   if (error) { console.error("loadWeekSelections error:", error); return [] }
-  return data || []
+  if (!data || data.length === 0) return []
+
+  // Map week_start_date back to current week_offset position
+  return data.map((row: any) => ({
+    ...row,
+    week_offset: weekDates.indexOf(row.week_start_date)
+  }))
 }
 
 // ─── CLEANUP OLD DATA ──────────────────────────────────────────────────────────
 
 export async function cleanupOldSelections(userId: string) {
+  // Delete anything older than 21 days (3 full weeks back)
   const cutoff = new Date()
-  cutoff.setDate(cutoff.getDate() - 14)
+  cutoff.setDate(cutoff.getDate() - 21)
 
   await supabase
     .from("weekly_selections")
