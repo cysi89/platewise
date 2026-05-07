@@ -225,7 +225,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <header style={{
         background: "var(--green)", padding: "0",
         position: "sticky", top: 0, zIndex: 100,
-        boxShadow: "0 2px 12px rgba(0,0,0,0.15)"
+        boxShadow: "0 2px 12px rgba(0,0,0,0.15)",
+        paddingTop: "env(safe-area-inset-top)"
       }}>
         {/* Inner constrained row — aligns with content below */}
         <div style={{
@@ -294,7 +295,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div style={{
         position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 99,
         background: "var(--white)", borderTop: "1px solid var(--border)",
-        display: "none", padding: "8px 0 12px"
+        display: "none", padding: "8px 0 calc(12px + env(safe-area-inset-bottom))"
       }} className="mobile-bottom-nav">
         {tabs.map((tab_label, i) => {
           const icons = ["📅", "🛒", "📊", "📖"]
@@ -318,7 +319,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         }
       `}</style>
 
-      <main style={{ maxWidth: 1200, margin: "0 auto", padding: "24px 16px 80px" }}>
+      <main style={{ maxWidth: 1200, margin: "0 auto", padding: "24px 16px calc(80px + env(safe-area-inset-bottom))" }}>
         {tab === 0 && <WeeklyTab weeks={weeks} menus={menus} updateWeek={updateWeek} confirmWeek={confirmWeek} toggleExpand={toggleExpand} startEditing={startEditing} cancelEditing={cancelEditing} />}
         {tab === 1 && <IngredientsTab weeks={weeks} />}
         {tab === 2 && <NutritionTab selections={allSelections} />}
