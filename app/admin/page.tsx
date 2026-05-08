@@ -289,9 +289,15 @@ export default function AdminPage() {
       const finalUrl = urlData.publicUrl
       console.log("Upload error:", uploadError)
       console.log("Final URL:", finalUrl)
+      console.log("=== IMAGE UPLOAD COMPLETE ===")
+      console.log("finalUrl:", finalUrl)
       setQuickImageUrl(finalUrl)
       quickImageUrlRef.current = finalUrl
-      setQuickText(prev => prev.replace(/^IMAGE_URL:.*$/m, `IMAGE_URL: ${finalUrl}`))
+      setQuickText(prev => {
+        const updated = prev.replace(/^IMAGE_URL:.*$/m, `IMAGE_URL: ${finalUrl}`)
+        console.log("Updated IMAGE_URL line:", updated.split("\n").find((l: string) => l.startsWith("IMAGE_URL:")))
+        return updated
+      })
     } catch (err) {
       console.error("Upload error:", err)
     } finally {
@@ -385,10 +391,17 @@ export default function AdminPage() {
     if (!quickParsed || quickParsed.errors.length > 0) return
     setQuickSaving(true); setQuickMsg("")
     try {
+      console.log("=== QUICK SAVE DEBUG ===")
+      console.log("quickImageUrl state:", quickImageUrl)
+      console.log("quickImageUrlRef.current:", quickImageUrlRef.current)
+      console.log("quickParsed.recipe.image_url:", quickParsed.recipe.image_url)
+      console.log("quickText IMAGE_URL line:", quickText.split("\n").find(l => l.startsWith("IMAGE_URL:")))
       // Use ref to get latest image URL (state may not have flushed yet)
       if (quickImageUrlRef.current && !quickParsed.recipe.image_url) {
         quickParsed.recipe.image_url = quickImageUrlRef.current
+        console.log("Applied ref URL to recipe:", quickImageUrlRef.current)
       }
+      console.log("Final image_url going to DB:", quickParsed.recipe.image_url)
       const id = await saveRecipeToDB(quickParsed.recipe, quickParsed.ingredients, quickParsed.steps)
       const slug = quickParsed.recipe.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")
       setQuickMsg(`✓ Recipe #${id} saved! Drop image in public/images/ named: dish-${id}-${slug}.png`)
