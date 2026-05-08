@@ -27,6 +27,7 @@ type Recipe = {
 type Ingredient = {
   id?: string
   name: string
+  name_it?: string
   amount: number
   unit: string
   category: string
@@ -125,7 +126,7 @@ function parseQuickAdd(text: string): { recipe: Omit<Recipe,"id">, ingredients: 
     for (let i = ingStart + 2; i < ingEnd; i++) {
       const parts = lines[i].split("|").map(p => p.trim())
       if (parts.length >= 3 && parts[0]) {
-        ingredients.push({ name: parts[0], name_it: parts[1] || "", amount: parseFloat(parts[2]) || 0, unit: parts[3] || "g", category: parts[4] || "pantry" })
+        ingredients.push({ name: parts[0], name_it: parts[1] || "", amount: parseFloat(parts[2]) || 0, unit: parts[3] || "g", category: (parts[4] || "pantry") as any })
       }
     }
   }
@@ -226,7 +227,7 @@ async function saveRecipeToDB(
 
   const cleanIngs = ings
     .filter(i => i.name.trim())
-    .map(({ id: _ingId, ...rest }) => ({ ...rest, recipe_id: id }))
+    .map(({ id: _ingId, ...rest }) => ({ ...rest, recipe_id: id, name_it: rest.name_it || null }))
   if (cleanIngs.length > 0) {
     const { error } = await supabase.from("recipe_ingredients").insert(cleanIngs)
     if (error) throw new Error("Ingredients insert failed: " + error.message)
