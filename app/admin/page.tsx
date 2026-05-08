@@ -27,7 +27,6 @@ type Recipe = {
 type Ingredient = {
   id?: string
   name: string
-  name_it?: string
   amount: number
   unit: string
   category: string
@@ -66,10 +65,10 @@ IS_GLUTEN_FREE: false
 IMAGE_URL: 
 
 INGREDIENTS:
-name_en | name_it | amount | unit | category
- |  |  | g | protein
- |  |  | g | vegetable
- |  |  | g | pantry
+name | amount | unit | category
+ |  | g | protein
+ |  | g | vegetable
+ |  | g | pantry
 
 STEPS_EN:
 1. 
@@ -126,7 +125,7 @@ function parseQuickAdd(text: string): { recipe: Omit<Recipe,"id">, ingredients: 
     for (let i = ingStart + 2; i < ingEnd; i++) {
       const parts = lines[i].split("|").map(p => p.trim())
       if (parts.length >= 3 && parts[0]) {
-        ingredients.push({ name: parts[0], name_it: parts[1] || "", amount: parseFloat(parts[2]) || 0, unit: parts[3] || "g", category: (parts[4] || "pantry") as any })
+        ingredients.push({ name: parts[0], amount: parseFloat(parts[1]) || 0, unit: parts[2] || "g", category: parts[3] || "pantry" })
       }
     }
   }
@@ -227,7 +226,7 @@ async function saveRecipeToDB(
 
   const cleanIngs = ings
     .filter(i => i.name.trim())
-    .map(({ id: _ingId, ...rest }) => ({ ...rest, recipe_id: id, name_it: rest.name_it || null }))
+    .map(({ id: _ingId, ...rest }) => ({ ...rest, recipe_id: id }))
   if (cleanIngs.length > 0) {
     const { error } = await supabase.from("recipe_ingredients").insert(cleanIngs)
     if (error) throw new Error("Ingredients insert failed: " + error.message)
@@ -265,7 +264,39 @@ export default function AdminPage() {
   const [quickSaving, setQuickSaving] = useState(false)
   const [quickMsg, setQuickMsg] = useState("")
   const [copiedPrompt, setCopiedPrompt] = useState(false)
+  const [quickImageFile, setQuickImageFile] = useState<File | null>(null)
+  const [quickImagePreview, setQuickImagePreview] = useState("")
+  const [quickImageUrl, setQuickImageUrl] = useState("")
+  const [quickUploading, setQuickUploading] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+  const quickImgRef = useRef<HTMLInputElement>(null)
+
+  const handleQuickImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setQuickImageFile(file)
+    setQuickImagePreview(URL.createObjectURL(file))
+    setQuickUploading(true)
+    try {
+      const slug = quickParsed?.recipe.name
+        ? quickParsed.recipe.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")
+        : "dish"
+      const ext = file.name.split(".").pop()
+      const filename = `dish-${nextId}-${slug}.${ext}`
+      const { error } = await supabase.storage.from("recipe-images").upload(filename, file, { upsert: true })
+      let finalUrl = `/images/${filename}`
+      if (!error) {
+        const { data } = supabase.storage.from("recipe-images").getPublicUrl(filename)
+        finalUrl = data.publicUrl
+      }
+      setQuickImageUrl(finalUrl)
+      setQuickText(prev => prev.replace(/^IMAGE_URL:.*$/m, `IMAGE_URL: ${finalUrl}`))
+    } catch (err) {
+      console.error("Upload error:", err)
+    } finally {
+      setQuickUploading(false)
+    }
+  }
 
   const login = () => {
     if (pw === ADMIN_PASSWORD) { setAuthed(true); setPwError(false) }
@@ -500,6 +531,31 @@ export default function AdminPage() {
                   <p style={{ color: "#666", fontSize: 11, marginTop: 6 }}>
                     Save image as: <strong style={{ color: "#a78bfa" }}>dish-{nextId}-{quickParsed.recipe.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")}.png</strong>
                   </p>
+
+                  {/* Upload image */}
+                  <div style={{ marginTop: 14, borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: 14 }}>
+                    <p style={{ color: "#a78bfa", fontWeight: 700, fontSize: 13, marginBottom: 8 }}>📸 Upload image</p>
+                    <input ref={quickImgRef} type="file" accept="image/*" onChange={handleQuickImage} style={{ display: "none" }} />
+                    {quickImagePreview ? (
+                      <div>
+                        <img src={quickImagePreview} alt="Preview"
+                          style={{ width: "100%", height: 140, objectFit: "cover", borderRadius: 8, marginBottom: 8 }} />
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button onClick={() => quickImgRef.current?.click()}
+                            style={{ ...s.btn, ...s.grey, flex: 1, fontSize: 12 }}>Change</button>
+                          <button onClick={() => { setQuickImagePreview(""); setQuickImageFile(null); setQuickImageUrl("") }}
+                            style={{ ...s.btn, ...s.red, padding: "9px 12px", fontSize: 12 }}>✕</button>
+                        </div>
+                        {quickImageUrl && <p style={{ color: "#7dff7d", fontSize: 11, marginTop: 6, wordBreak: "break-all" as const }}>✓ {quickImageUrl}</p>}
+                        {quickUploading && <p style={{ color: "#a78bfa", fontSize: 11, marginTop: 6 }}>Uploading...</p>}
+                      </div>
+                    ) : (
+                      <button onClick={() => quickImgRef.current?.click()}
+                        style={{ ...s.btn, background: "rgba(167,139,250,0.15)", color: "#a78bfa", border: "1px dashed #a78bfa", width: "100%", fontSize: 13, padding: "12px" }}>
+                        📁 Select image file
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
 
