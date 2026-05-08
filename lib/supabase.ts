@@ -1,4 +1,4 @@
-import { createClient, SupabaseClient } from "@supabase/supabase-js"
+﻿import { createClient, SupabaseClient } from "@supabase/supabase-js"
 import { Menu, Ingredient } from "./types"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -11,7 +11,7 @@ declare global {
 export const supabase = globalThis._supabaseClient ??
   (globalThis._supabaseClient = createClient(supabaseUrl, supabaseKey))
 
-// ─── HELPERS ──────────────────────────────────────────────────────────────────
+// â”€â”€â”€ HELPERS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export function getMondayDate(weekOffset: number = 0): string {
   const now = new Date()
@@ -23,7 +23,7 @@ export function getMondayDate(weekOffset: number = 0): string {
   return monday.toISOString().split("T")[0] // YYYY-MM-DD
 }
 
-// ─── RECIPE FETCHING ───────────────────────────────────────────────────────────
+// â”€â”€â”€ RECIPE FETCHING â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function fetchAllRecipes(lang: string = "en"): Promise<Menu[]> {
   const { data: recipes, error } = await supabase
@@ -66,7 +66,7 @@ export async function fetchAllRecipes(lang: string = "en"): Promise<Menu[]> {
     ingredients: (ingredients || [])
       .filter(i => i.recipe_id === r.id)
       .map(i => ({
-        name: i.name,
+        name: lang === "it" && i.name_it ? i.name_it : i.name,
         amount: i.amount,
         unit: i.unit,
         category: i.category as Ingredient["category"]
@@ -74,7 +74,7 @@ export async function fetchAllRecipes(lang: string = "en"): Promise<Menu[]> {
   }))
 }
 
-// ─── WEEK SELECTIONS — stored by actual calendar date ─────────────────────────
+// â”€â”€â”€ WEEK SELECTIONS â€” stored by actual calendar date â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function saveWeekSelections(
   userId: string,
@@ -123,7 +123,7 @@ export async function loadWeekSelections(userId: string) {
   }))
 }
 
-// ─── CLEANUP OLD DATA ──────────────────────────────────────────────────────────
+// â”€â”€â”€ CLEANUP OLD DATA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function cleanupOldSelections(userId: string) {
   // Delete anything older than 21 days (3 full weeks back)

@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 import { useState, useEffect, useRef } from "react"
 import { supabase } from "@/lib/supabase"
 
@@ -47,7 +47,6 @@ const emptyRecipe: Omit<Recipe, "id"> = {
   diet_types: ["omnivore"]
 }
 
-// ── QUICK ADD TEMPLATE ────────────────────────────────────────────────────────
 const QUICK_ADD_TEMPLATE = `NAME_EN: 
 NAME_IT: 
 DESC_EN: 
@@ -66,10 +65,10 @@ IS_GLUTEN_FREE: false
 IMAGE_URL: 
 
 INGREDIENTS:
-name | amount | unit | category
- |  | g | protein
- |  | g | vegetable
- |  | g | pantry
+name_en | name_it | amount | unit | category
+ |  |  | g | protein
+ |  |  | g | vegetable
+ |  |  | g | pantry
 
 STEPS_EN:
 1. 
@@ -116,7 +115,6 @@ function parseQuickAdd(text: string): { recipe: Omit<Recipe,"id">, ingredients: 
   if (!recipe.name) errors.push("NAME_EN is required")
   if (!recipe.calories) errors.push("CALORIES is required")
 
-  // Parse ingredients
   const ingStart = lines.findIndex(l => l === "INGREDIENTS:")
   const stepsEnStart = lines.findIndex(l => l === "STEPS_EN:")
   const stepsItStart = lines.findIndex(l => l === "STEPS_IT:")
@@ -127,17 +125,11 @@ function parseQuickAdd(text: string): { recipe: Omit<Recipe,"id">, ingredients: 
     for (let i = ingStart + 2; i < ingEnd; i++) {
       const parts = lines[i].split("|").map(p => p.trim())
       if (parts.length >= 3 && parts[0]) {
-        ingredients.push({
-          name: parts[0],
-          amount: parseFloat(parts[1]) || 0,
-          unit: parts[2] || "g",
-          category: parts[3] || "pantry"
-        })
+        ingredients.push({ name: parts[0], name_it: parts[1] || "", amount: parseFloat(parts[2]) || 0, unit: parts[3] || "g", category: parts[4] || "pantry" })
       }
     }
   }
 
-  // Parse EN steps
   const stepsEn: string[] = []
   if (stepsEnStart >= 0) {
     const end = stepsItStart > stepsEnStart ? stepsItStart : lines.length
@@ -147,7 +139,6 @@ function parseQuickAdd(text: string): { recipe: Omit<Recipe,"id">, ingredients: 
     }
   }
 
-  // Parse IT steps
   const stepsIt: string[] = []
   if (stepsItStart >= 0) {
     for (let i = stepsItStart + 1; i < lines.length; i++) {
@@ -172,6 +163,86 @@ function generateGeminiPrompt(recipe: Omit<Recipe,"id">): string {
   return `Professional food photography, overhead shot, ${isVeg}${recipe.name.toLowerCase()}, ${recipe.description ? recipe.description.toLowerCase().slice(0, 80) + ", " : ""}beautifully plated, styled on a wooden farmhouse table, warm Italian kitchen light, shallow depth of field, appetising and fresh${tags ? ", " + tags : ""}`
 }
 
+// ── CORE SAVE FUNCTION ────────────────────────────────────────────────────────
+async function saveRecipeToDB(
+  recipeForm: Omit<Recipe,"id">,
+  ings: Ingredient[],
+  stps: Step[],
+  existingId?: string,
+  imgFile?: File | null
+): Promise<string> {
+  // ── 1. Determine ID ────────────────────────────────────────────────────────
+  let id = existingId
+  if (!id) {
+    // Fetch ALL ids and take the numeric max to avoid text-sort issues
+    const { data: allRecipes } = await supabase.from("recipes").select("id")
+    const maxId = allRecipes && allRecipes.length > 0
+      ? Math.max(...allRecipes.map((r: any) => parseInt(r.id) || 0))
+      : 0
+    id = String(maxId + 1)
+  }
+
+  // ── 2. Handle image ────────────────────────────────────────────────────────
+  let imageUrl = recipeForm.image_url
+
+  // If no image_url provided, generate the conventional local path
+  if (!imageUrl) {
+    const slug = recipeForm.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")
+    imageUrl = `/images/dish-${id}-${slug}.png`
+  }
+
+  // If a file was uploaded, push to Supabase storage
+  if (imgFile) {
+    try {
+      const ext = imgFile.name.split(".").pop()
+      const slug = recipeForm.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")
+      const path = `dish-${id}-${slug}.${ext}`
+      const { error: uploadError } = await supabase.storage
+        .from("recipe-images")
+        .upload(path, imgFile, { upsert: true })
+      if (!uploadError) {
+        const { data } = supabase.storage.from("recipe-images").getPublicUrl(path)
+        imageUrl = data.publicUrl
+      }
+    } catch (e) {
+      console.warn("Image upload failed, using local path:", e)
+    }
+  }
+
+  const recipeData = { ...recipeForm, image_url: imageUrl }
+
+  // ── 3. Upsert recipe ───────────────────────────────────────────────────────
+  if (existingId) {
+    const { error } = await supabase.from("recipes").update(recipeData).eq("id", id)
+    if (error) throw new Error("Recipe update failed: " + error.message)
+  } else {
+    const { error } = await supabase.from("recipes").insert({ id, ...recipeData })
+    if (error) throw new Error("Recipe insert failed: " + error.message)
+  }
+
+  // ── 4. Replace ingredients and steps ──────────────────────────────────────
+  await supabase.from("recipe_ingredients").delete().eq("recipe_id", id)
+  await supabase.from("recipe_steps").delete().eq("recipe_id", id)
+
+  const cleanIngs = ings
+    .filter(i => i.name.trim())
+    .map(({ id: _ingId, ...rest }) => ({ ...rest, recipe_id: id }))
+  if (cleanIngs.length > 0) {
+    const { error } = await supabase.from("recipe_ingredients").insert(cleanIngs)
+    if (error) throw new Error("Ingredients insert failed: " + error.message)
+  }
+
+  const cleanStps = stps
+    .filter(s => s.instruction.trim())
+    .map(({ id: _stepId, ...rest }) => ({ ...rest, recipe_id: id }))
+  if (cleanStps.length > 0) {
+    const { error } = await supabase.from("recipe_steps").insert(cleanStps)
+    if (error) throw new Error("Steps insert failed: " + error.message)
+  }
+
+  return id
+}
+
 export default function AdminPage() {
   const [authed, setAuthed] = useState(false)
   const [pw, setPw] = useState("")
@@ -187,10 +258,9 @@ export default function AdminPage() {
   const [saveMsg, setSaveMsg] = useState("")
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState("")
-  const [uploadingImage, setUploadingImage] = useState(false)
   const [tagInput, setTagInput] = useState("")
   const [quickText, setQuickText] = useState(QUICK_ADD_TEMPLATE)
-  const [quickParsed, setQuickParsed] = useState<{recipe: Omit<Recipe,"id">, ingredients: Ingredient[], steps: Step[], errors: string[]} | null>(null)
+  const [quickParsed, setQuickParsed] = useState<ReturnType<typeof parseQuickAdd> | null>(null)
   const [quickSaving, setQuickSaving] = useState(false)
   const [quickMsg, setQuickMsg] = useState("")
   const [copiedPrompt, setCopiedPrompt] = useState(false)
@@ -218,6 +288,7 @@ export default function AdminPage() {
     setSelected(recipe)
     setForm({ ...recipe })
     setImagePreview(recipe.image_url || "")
+    setImageFile(null)
     setView("edit")
   }
 
@@ -228,6 +299,7 @@ export default function AdminPage() {
     setSteps([{ step_number: 1, instruction: "", instruction_it: "" }])
     setImagePreview("")
     setImageFile(null)
+    setSaveMsg("")
     setView("new")
   }
 
@@ -238,114 +310,51 @@ export default function AdminPage() {
     setImagePreview(URL.createObjectURL(file))
   }
 
-  const uploadImage = async (recipeId: string): Promise<string> => {
-    if (!imageFile) return form.image_url
-    setUploadingImage(true)
-    try {
-      const ext = imageFile.name.split(".").pop()
-      const path = `dish-${recipeId}-${Date.now()}.${ext}`
-      const { error } = await supabase.storage.from("recipe-images").upload(path, imageFile, { upsert: true })
-      if (error) return `/images/${path}`
-      const { data } = supabase.storage.from("recipe-images").getPublicUrl(path)
-      return data.publicUrl
-    } finally {
-      setUploadingImage(false)
-    }
-  }
-
   const addIngredient = () => setIngredients(prev => [...prev, { name: "", amount: 0, unit: "g", category: "protein" }])
   const removeIngredient = (i: number) => setIngredients(prev => prev.filter((_, idx) => idx !== i))
-  const updateIngredient = (i: number, field: string, value: any) => {
+  const updateIngredient = (i: number, field: string, value: any) =>
     setIngredients(prev => prev.map((ing, idx) => idx === i ? { ...ing, [field]: value } : ing))
-  }
+
   const addStep = () => setSteps(prev => [...prev, { step_number: prev.length + 1, instruction: "", instruction_it: "" }])
   const removeStep = (i: number) => setSteps(prev => prev.filter((_, idx) => idx !== i).map((s, idx) => ({ ...s, step_number: idx + 1 })))
-  const updateStep = (i: number, field: string, value: string) => {
+  const updateStep = (i: number, field: string, value: string) =>
     setSteps(prev => prev.map((s, idx) => idx === i ? { ...s, [field]: value } : s))
-  }
+
   const addTag = () => {
     if (!tagInput.trim()) return
     setForm(prev => ({ ...prev, tags: [...prev.tags, tagInput.trim().toLowerCase()] }))
     setTagInput("")
   }
   const removeTag = (tag: string) => setForm(prev => ({ ...prev, tags: prev.tags.filter(t => t !== tag) }))
-  const toggleDietType = (type: string) => {
-    setForm(prev => ({
-      ...prev,
-      diet_types: prev.diet_types.includes(type) ? prev.diet_types.filter(t => t !== type) : [...prev.diet_types, type]
-    }))
-  }
-
-  const saveRecipe = async (recipeForm: Omit<Recipe,"id">, ings: Ingredient[], stps: Step[], recipeId?: string, imgFile?: File | null, currentImageUrl?: string) => {
-    let id = recipeId
-    if (!id) {
-      const { data: existing } = await supabase.from("recipes").select("id").order("id", { ascending: false }).limit(1)
-      const lastId = existing?.[0]?.id ? parseInt(existing[0].id) : 0
-      id = String(lastId + 1)
-    }
-
-    let imageUrl = recipeForm.image_url || currentImageUrl || ""
-    if (imgFile) {
-      setUploadingImage(true)
-      try {
-        const ext = imgFile.name.split(".").pop()
-        const path = `dish-${id}-${Date.now()}.${ext}`
-        const { error } = await supabase.storage.from("recipe-images").upload(path, imgFile, { upsert: true })
-        if (!error) {
-          const { data } = supabase.storage.from("recipe-images").getPublicUrl(path)
-          imageUrl = data.publicUrl
-        } else {
-          imageUrl = `/images/dish-${id}-${recipeForm.name.toLowerCase().replace(/\s+/g, "-")}.png`
-        }
-      } finally {
-        setUploadingImage(false)
-      }
-    }
-
-    const recipeData = { ...recipeForm, image_url: imageUrl }
-
-    if (recipeId) {
-      await supabase.from("recipes").update(recipeData).eq("id", id)
-    } else {
-      await supabase.from("recipes").insert({ id, ...recipeData })
-    }
-
-    await supabase.from("recipe_ingredients").delete().eq("recipe_id", id)
-    await supabase.from("recipe_steps").delete().eq("recipe_id", id)
-
-    const cleanIngs = ings.filter(i => i.name.trim()).map(({ id: _, ...rest }) => ({ ...rest, recipe_id: id }))
-    if (cleanIngs.length > 0) await supabase.from("recipe_ingredients").insert(cleanIngs)
-
-    const cleanStps = stps.filter(s => s.instruction.trim()).map(({ id: _, ...rest }) => ({ ...rest, recipe_id: id }))
-    if (cleanStps.length > 0) await supabase.from("recipe_steps").insert(cleanStps)
-
-    return id
-  }
+  const toggleDietType = (type: string) => setForm(prev => ({
+    ...prev,
+    diet_types: prev.diet_types.includes(type) ? prev.diet_types.filter(t => t !== type) : [...prev.diet_types, type]
+  }))
 
   const save = async () => {
+    if (!form.name) { setSaveMsg("✗ Name is required"); return }
     setSaving(true); setSaveMsg("")
     try {
-      await saveRecipe(form, ingredients, steps, selected?.id, imageFile, selected?.image_url)
-      setSaveMsg("✓ Saved!")
+      const id = await saveRecipeToDB(form, ingredients, steps, selected?.id, imageFile)
+      setSaveMsg(`✓ Recipe #${id} saved!`)
       await loadRecipes()
-      setTimeout(() => setSaveMsg(""), 3000)
+      setTimeout(() => setSaveMsg(""), 4000)
     } catch (err: any) {
       setSaveMsg("✗ " + err.message)
     } finally {
-      setSaving(false) }
+      setSaving(false)
+    }
   }
 
-  const quickPreview = () => {
-    const result = parseQuickAdd(quickText)
-    setQuickParsed(result)
-  }
+  const quickPreview = () => setQuickParsed(parseQuickAdd(quickText))
 
   const quickSave = async () => {
     if (!quickParsed || quickParsed.errors.length > 0) return
     setQuickSaving(true); setQuickMsg("")
     try {
-      const id = await saveRecipe(quickParsed.recipe, quickParsed.ingredients, quickParsed.steps)
-      setQuickMsg(`✓ Recipe #${id} saved! Image file should be named: dish-${id}-${quickParsed.recipe.name.toLowerCase().replace(/\s+/g, "-")}.png`)
+      const id = await saveRecipeToDB(quickParsed.recipe, quickParsed.ingredients, quickParsed.steps)
+      const slug = quickParsed.recipe.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")
+      setQuickMsg(`✓ Recipe #${id} saved! Drop image in public/images/ named: dish-${id}-${slug}.png`)
       setQuickText(QUICK_ADD_TEMPLATE)
       setQuickParsed(null)
       await loadRecipes()
@@ -368,8 +377,11 @@ export default function AdminPage() {
     await supabase.from("recipe_steps").delete().eq("recipe_id", id)
     await supabase.from("recipes").delete().eq("id", id)
     await loadRecipes()
-    setView("list")
+    if (view !== "list") setView("list")
   }
+
+  // Next ID preview for Quick Add header
+  const nextId = recipes.length > 0 ? Math.max(...recipes.map(r => parseInt(r.id) || 0)) + 1 : 1
 
   // ── STYLES ───────────────────────────────────────────────────────────────────
   const s = {
@@ -380,236 +392,178 @@ export default function AdminPage() {
     btn: { padding: "9px 18px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 14, fontWeight: 600, fontFamily: "inherit" },
     card: { background: "#fff", borderRadius: 12, border: "1px solid #e5e5e5", padding: "20px 24px", marginBottom: 16 },
     green: { background: "#2d5a27", color: "#fff" },
-    orange: { background: "#e86c2f", color: "#fff" },
     red: { background: "#dc2626", color: "#fff" },
     grey: { background: "#f0f0f0", color: "#333" },
     blue: { background: "#1d4ed8", color: "#fff" },
+    purple: { background: "#7c3aed", color: "#fff" },
     grid2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 },
     sectionTitle: { fontSize: 16, fontWeight: 700, marginBottom: 16, color: "#2d5a27", borderBottom: "2px solid #eef4ed", paddingBottom: 8 },
-    flag: { fontSize: 18, marginRight: 6 },
   }
 
-  // ── NAV HEADER ───────────────────────────────────────────────────────────────
+  // ── SHARED HEADER ─────────────────────────────────────────────────────────────
   const Header = ({ subtitle }: { subtitle: string }) => (
-    <div style={{ background: "#2d5a27", padding: "0 32px", height: 60, display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky" as const, top: 0, zIndex: 100 }}>
+    <div style={{ background: "#2d5a27", padding: "0 32px", height: 60, display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky" as const, top: 0, zIndex: 100, boxShadow: "0 2px 8px rgba(0,0,0,0.2)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
         <span style={{ color: "#fff", fontFamily: "Georgia, serif", fontSize: 20, fontWeight: 700 }}>🧞 Genie Admin</span>
         <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 13 }}>{subtitle}</span>
       </div>
-      <div style={{ display: "flex", gap: 8 }}>
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        {saveMsg && <span style={{ fontSize: 13, fontWeight: 600, color: saveMsg.startsWith("✓") ? "#7dff7d" : "#ff9999" }}>{saveMsg}</span>}
         {view !== "list" && (
           <button onClick={() => { setView("list"); setSaveMsg(""); setQuickMsg(""); setQuickParsed(null) }}
             style={{ ...s.btn, ...s.grey, fontSize: 13 }}>← Back</button>
         )}
-        {view === "list" && (
-          <>
-            <button onClick={() => setView("quick")} style={{ ...s.btn, background: "#e86c2f", color: "#fff", fontSize: 13 }}>⚡ Quick Add</button>
-            <button onClick={startNew} style={{ ...s.btn, background: "rgba(255,255,255,0.2)", color: "#fff", fontSize: 13 }}>+ Manual Add</button>
-            <a href="/weekly" style={{ ...s.btn, background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 13, textDecoration: "none", display: "inline-flex", alignItems: "center" }}>← App</a>
-          </>
-        )}
+        {view === "list" && <>
+          <button onClick={() => { setView("quick"); setSaveMsg("") }} style={{ ...s.btn, background: "#e86c2f", color: "#fff", fontSize: 13 }}>⚡ Quick Add</button>
+          <button onClick={startNew} style={{ ...s.btn, background: "rgba(255,255,255,0.2)", color: "#fff", border: "1px solid rgba(255,255,255,0.3)", fontSize: 13 }}>+ Manual Add</button>
+          <a href="/weekly" style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, textDecoration: "none" }}>← App</a>
+        </>}
         {(view === "edit" || view === "new") && (
-          <>
-            {saveMsg && <span style={{ color: saveMsg.startsWith("✓") ? "#7dff7d" : "#ff7d7d", fontSize: 13, fontWeight: 600, alignSelf: "center" }}>{saveMsg}</span>}
-            <button onClick={save} disabled={saving} style={{ ...s.btn, ...s.green, opacity: saving ? 0.7 : 1 }}>
-              {saving ? "Saving..." : (view === "new" ? "Create ✓" : "Save ✓")}
-            </button>
-          </>
+          <button onClick={save} disabled={saving} style={{ ...s.btn, ...s.green, opacity: saving ? 0.7 : 1 }}>
+            {saving ? "Saving..." : view === "new" ? "Create ✓" : "Save ✓"}
+          </button>
         )}
       </div>
     </div>
   )
 
   // ── LOGIN ─────────────────────────────────────────────────────────────────────
-  if (!authed) {
-    return (
-      <div style={{ minHeight: "100vh", background: "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ background: "#fff", borderRadius: 16, padding: "48px 40px", width: 360, boxShadow: "0 8px 40px rgba(0,0,0,0.1)" }}>
-          <div style={{ textAlign: "center", marginBottom: 32 }}>
-            <div style={{ fontSize: 40, marginBottom: 8 }}>🧞</div>
-            <h1 style={{ fontFamily: "Georgia, serif", fontSize: 28, color: "#2d5a27", marginBottom: 4 }}>Genie Admin</h1>
-            <p style={{ fontSize: 14, color: "#888" }}>Recipe management portal</p>
-          </div>
-          <label style={s.label}>Password</label>
-          <input type="password" value={pw} onChange={e => setPw(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && login()} placeholder="Enter admin password"
-            style={{ ...s.input, marginBottom: 12, border: pwError ? "1.5px solid #dc2626" : "1.5px solid #ddd" }} />
-          {pwError && <p style={{ color: "#dc2626", fontSize: 13, marginBottom: 12 }}>Incorrect password</p>}
-          <button onClick={login} style={{ ...s.btn, ...s.green, width: "100%", padding: "12px" }}>Sign in →</button>
+  if (!authed) return (
+    <div style={{ minHeight: "100vh", background: "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ background: "#fff", borderRadius: 16, padding: "48px 40px", width: 360, boxShadow: "0 8px 40px rgba(0,0,0,0.1)" }}>
+        <div style={{ textAlign: "center", marginBottom: 32 }}>
+          <div style={{ fontSize: 40, marginBottom: 8 }}>🧞</div>
+          <h1 style={{ fontFamily: "Georgia, serif", fontSize: 28, color: "#2d5a27", marginBottom: 4 }}>Genie Admin</h1>
+          <p style={{ fontSize: 14, color: "#888" }}>Recipe management portal</p>
         </div>
+        <label style={s.label}>Password</label>
+        <input type="password" value={pw} onChange={e => setPw(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && login()} placeholder="Enter admin password"
+          style={{ ...s.input, marginBottom: 12, border: pwError ? "1.5px solid #dc2626" : "1.5px solid #ddd" }} />
+        {pwError && <p style={{ color: "#dc2626", fontSize: 13, marginBottom: 12 }}>Incorrect password</p>}
+        <button onClick={login} style={{ ...s.btn, ...s.green, width: "100%", padding: "12px" }}>Sign in →</button>
       </div>
-    )
-  }
+    </div>
+  )
 
-  // ── QUICK ADD VIEW ────────────────────────────────────────────────────────────
+  // ── QUICK ADD ─────────────────────────────────────────────────────────────────
   if (view === "quick") {
-    const geminiPrompt = quickParsed ? generateGeminiPrompt(quickParsed.recipe) : ""
-    const nextId = recipes.length > 0 ? Math.max(...recipes.map(r => parseInt(r.id) || 0)) + 1 : 1
-
+    const geminiPrompt = quickParsed?.recipe.name ? generateGeminiPrompt(quickParsed.recipe) : ""
     return (
       <div style={{ minHeight: "100vh", background: "#f5f5f5" }}>
         <Header subtitle="⚡ Quick Add" />
         <div style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 24px" }}>
 
-          {/* Instructions */}
-          <div style={{ background: "#fff8f0", border: "1px solid #e86c2f", borderRadius: 12, padding: "16px 20px", marginBottom: 24, display: "flex", gap: 12, alignItems: "flex-start" }}>
-            <span style={{ fontSize: 24, flexShrink: 0 }}>⚡</span>
+          <div style={{ background: "#fff8f0", border: "1px solid #e86c2f", borderRadius: 12, padding: "16px 20px", marginBottom: 24, display: "flex", gap: 12 }}>
+            <span style={{ fontSize: 24 }}>⚡</span>
             <div>
-              <p style={{ fontWeight: 700, fontSize: 15, marginBottom: 6, color: "#e86c2f" }}>Quick Add — paste all recipe details in one go</p>
+              <p style={{ fontWeight: 700, fontSize: 15, color: "#e86c2f", marginBottom: 6 }}>Quick Add — fill the template, preview, save</p>
               <p style={{ fontSize: 14, color: "#555", lineHeight: 1.6 }}>
-                Fill in the template below, click <strong>Preview</strong> to check it parsed correctly, then <strong>Save to database</strong>. The Gemini image prompt is generated automatically — copy it and paste into <a href="https://gemini.google.com" target="_blank" style={{ color: "#2d5a27" }}>gemini.google.com</a> to create your dish photo.
+                Fill in all fields below and click <strong>Preview</strong>. Check the parsed data on the right, copy the <strong>Gemini prompt</strong> to generate your image, then click <strong>Save to database</strong>.
               </p>
               <p style={{ fontSize: 13, color: "#888", marginTop: 6 }}>
-                Next recipe will be <strong>#{nextId}</strong> — image file should be named <strong>dish-{nextId}-name-of-dish.png</strong>
+                Next recipe ID: <strong>#{nextId}</strong> — image file: <strong>dish-{nextId}-name-of-dish.png</strong> → drop in <code>public/images/</code>
               </p>
             </div>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 400px", gap: 24 }}>
-
-            {/* LEFT — paste area */}
-            <div>
-              <div style={s.card}>
-                <p style={s.sectionTitle}>📋 Recipe Template — fill in all fields</p>
-                <p style={{ fontSize: 12, color: "#888", marginBottom: 12 }}>
-                  Keep the format exactly as shown. For ingredients use: <code style={{ background: "#f5f5f5", padding: "1px 6px", borderRadius: 4 }}>name | amount | unit | category</code>
-                </p>
-                <textarea
-                  value={quickText}
-                  onChange={e => { setQuickText(e.target.value); setQuickParsed(null); setQuickMsg("") }}
-                  style={{
-                    ...s.textarea, minHeight: 600, fontFamily: "monospace", fontSize: 13,
-                    lineHeight: 1.6, background: "#fafafa", border: "2px solid #e5e5e5"
-                  }}
-                />
-                <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
-                  <button onClick={quickPreview} style={{ ...s.btn, ...s.blue, flex: 1 }}>
-                    👁 Preview parsed data
-                  </button>
-                  <button onClick={() => { setQuickText(QUICK_ADD_TEMPLATE); setQuickParsed(null); setQuickMsg("") }}
-                    style={{ ...s.btn, ...s.grey }}>
-                    Reset
-                  </button>
-                </div>
+            <div style={s.card}>
+              <p style={s.sectionTitle}>📋 Recipe Template</p>
+              <p style={{ fontSize: 12, color: "#888", marginBottom: 10 }}>
+                Ingredients format: <code style={{ background: "#f5f5f5", padding: "1px 6px", borderRadius: 4 }}>name | amount | unit | category</code>
+              </p>
+              <textarea value={quickText}
+                onChange={e => { setQuickText(e.target.value); setQuickParsed(null); setQuickMsg("") }}
+                style={{ ...s.textarea, minHeight: 620, fontFamily: "monospace", fontSize: 13, lineHeight: 1.6, background: "#fafafa", border: "2px solid #e5e5e5" }}
+              />
+              <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
+                <button onClick={quickPreview} style={{ ...s.btn, ...s.blue, flex: 1 }}>👁 Preview parsed data</button>
+                <button onClick={() => { setQuickText(QUICK_ADD_TEMPLATE); setQuickParsed(null); setQuickMsg("") }} style={{ ...s.btn, ...s.grey }}>Reset</button>
               </div>
             </div>
 
-            {/* RIGHT — preview + actions */}
             <div>
-
-              {/* Gemini prompt box — always visible once name is typed */}
-              {quickParsed && quickParsed.recipe.name && (
+              {/* Gemini prompt */}
+              {quickParsed?.recipe.name && (
                 <div style={{ background: "#1a1a2e", borderRadius: 12, padding: "18px 20px", marginBottom: 16 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                     <p style={{ color: "#a78bfa", fontWeight: 700, fontSize: 14 }}>🎨 Gemini Image Prompt</p>
-                    <button onClick={() => copyPrompt(geminiPrompt)} style={{
-                      ...s.btn, background: copiedPrompt ? "#16a34a" : "#7c3aed", color: "#fff",
-                      padding: "6px 14px", fontSize: 12
-                    }}>
-                      {copiedPrompt ? "✓ Copied!" : "Copy prompt"}
+                    <button onClick={() => copyPrompt(geminiPrompt)}
+                      style={{ ...s.btn, background: copiedPrompt ? "#16a34a" : "#7c3aed", color: "#fff", padding: "6px 14px", fontSize: 12 }}>
+                      {copiedPrompt ? "✓ Copied!" : "Copy"}
                     </button>
                   </div>
-                  <p style={{ color: "#e2e8f0", fontSize: 13, lineHeight: 1.6, fontFamily: "monospace", wordBreak: "break-word" as const }}>
-                    {geminiPrompt}
-                  </p>
-                  <a href="https://gemini.google.com" target="_blank"
-                    style={{ display: "inline-block", marginTop: 10, color: "#a78bfa", fontSize: 12, textDecoration: "none" }}>
-                    → Open Gemini to generate image ↗
-                  </a>
+                  <p style={{ color: "#e2e8f0", fontSize: 12, lineHeight: 1.6, fontFamily: "monospace", wordBreak: "break-word" as const }}>{geminiPrompt}</p>
+                  <a href="https://gemini.google.com" target="_blank" style={{ color: "#a78bfa", fontSize: 12, textDecoration: "none", display: "block", marginTop: 10 }}>→ Open Gemini ↗</a>
                   <p style={{ color: "#666", fontSize: 11, marginTop: 6 }}>
-                    Image filename: <strong style={{ color: "#a78bfa" }}>dish-{nextId}-{quickParsed.recipe.name.toLowerCase().replace(/\s+/g, "-")}.png</strong>
+                    Save image as: <strong style={{ color: "#a78bfa" }}>dish-{nextId}-{quickParsed.recipe.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")}.png</strong>
                   </p>
                 </div>
               )}
 
-              {/* Validation errors */}
+              {/* Errors */}
               {quickParsed && quickParsed.errors.length > 0 && (
                 <div style={{ background: "#fef2f2", border: "1px solid #dc2626", borderRadius: 12, padding: "14px 18px", marginBottom: 16 }}>
-                  <p style={{ fontWeight: 700, color: "#dc2626", marginBottom: 8, fontSize: 14 }}>⚠ Fix these before saving:</p>
+                  <p style={{ fontWeight: 700, color: "#dc2626", marginBottom: 8 }}>⚠ Fix before saving:</p>
                   {quickParsed.errors.map((e, i) => <p key={i} style={{ color: "#dc2626", fontSize: 13 }}>• {e}</p>)}
                 </div>
               )}
 
-              {/* Parsed preview */}
+              {/* Preview card */}
               {quickParsed && quickParsed.errors.length === 0 && (
                 <div style={s.card}>
-                  <p style={s.sectionTitle}>✅ Preview — looks good?</p>
+                  <p style={s.sectionTitle}>✅ Looks good?</p>
+                  <p style={{ fontWeight: 700, fontSize: 16, marginBottom: 2 }}>{quickParsed.recipe.name}</p>
+                  {quickParsed.recipe.name_it && <p style={{ fontSize: 13, color: "#888", marginBottom: 6 }}>🇮🇹 {quickParsed.recipe.name_it}</p>}
+                  <p style={{ fontSize: 13, color: "#555", lineHeight: 1.5, marginBottom: 10 }}>{quickParsed.recipe.description}</p>
 
-                  {/* Recipe basics */}
-                  <div style={{ marginBottom: 16 }}>
-                    <p style={{ fontWeight: 700, fontSize: 16, marginBottom: 2 }}>{quickParsed.recipe.name}</p>
-                    {quickParsed.recipe.name_it && <p style={{ fontSize: 13, color: "#888", marginBottom: 6 }}>🇮🇹 {quickParsed.recipe.name_it}</p>}
-                    <p style={{ fontSize: 13, color: "#555", lineHeight: 1.5, marginBottom: 8 }}>{quickParsed.recipe.description}</p>
-                    <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                      {[
-                        { label: "⏱", val: `${quickParsed.recipe.cook_time}min` },
-                        { label: "🔥", val: `${quickParsed.recipe.calories}kcal` },
-                        { label: "💪", val: `${quickParsed.recipe.protein}g protein` },
-                        { label: "🌾", val: `${quickParsed.recipe.carbs}g carbs` },
-                      ].map(item => (
-                        <span key={item.label} style={{ fontSize: 12, color: "#555", background: "#f5f5f5", padding: "3px 8px", borderRadius: 6 }}>{item.label} {item.val}</span>
-                      ))}
-                    </div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" as const, marginBottom: 12 }}>
+                    {[`⏱ ${quickParsed.recipe.cook_time}min`, `🔥 ${quickParsed.recipe.calories}kcal`, `💪 ${quickParsed.recipe.protein}g`, `🌾 ${quickParsed.recipe.carbs}g`].map(v => (
+                      <span key={v} style={{ fontSize: 12, background: "#f5f5f5", padding: "3px 8px", borderRadius: 6, color: "#555" }}>{v}</span>
+                    ))}
                   </div>
 
-                  {/* Tags */}
                   {quickParsed.recipe.tags.length > 0 && (
-                    <div style={{ marginBottom: 14 }}>
-                      <p style={{ fontSize: 11, fontWeight: 700, color: "#999", textTransform: "uppercase", marginBottom: 6 }}>Tags</p>
-                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                        {quickParsed.recipe.tags.map(tag => (
-                          <span key={tag} style={{ background: "#eef4ed", color: "#2d5a27", borderRadius: 999, padding: "2px 10px", fontSize: 12, fontWeight: 600 }}>{tag}</span>
-                        ))}
-                      </div>
+                    <div style={{ marginBottom: 12, display: "flex", gap: 6, flexWrap: "wrap" as const }}>
+                      {quickParsed.recipe.tags.map(tag => (
+                        <span key={tag} style={{ background: "#eef4ed", color: "#2d5a27", borderRadius: 999, padding: "2px 10px", fontSize: 11, fontWeight: 600 }}>{tag}</span>
+                      ))}
                     </div>
                   )}
 
-                  {/* Ingredients */}
-                  <div style={{ marginBottom: 14 }}>
-                    <p style={{ fontSize: 11, fontWeight: 700, color: "#999", textTransform: "uppercase", marginBottom: 6 }}>
-                      Ingredients ({quickParsed.ingredients.length})
-                    </p>
-                    {quickParsed.ingredients.map((ing, i) => (
-                      <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "4px 0", borderBottom: "1px solid #f5f5f5" }}>
-                        <span>{ing.name}</span>
-                        <span style={{ color: "#888" }}>{ing.amount} {ing.unit} <span style={{ color: "#bbb" }}>({ing.category})</span></span>
-                      </div>
-                    ))}
-                  </div>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: "#999", textTransform: "uppercase" as const, marginBottom: 6 }}>Ingredients ({quickParsed.ingredients.length})</p>
+                  {quickParsed.ingredients.map((ing, i) => (
+                    <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "3px 0", borderBottom: "1px solid #f5f5f5" }}>
+                      <span>{ing.name}</span>
+                      <span style={{ color: "#888" }}>{ing.amount} {ing.unit} ({ing.category})</span>
+                    </div>
+                  ))}
 
-                  {/* Steps */}
-                  <div style={{ marginBottom: 16 }}>
-                    <p style={{ fontSize: 11, fontWeight: 700, color: "#999", textTransform: "uppercase", marginBottom: 6 }}>
-                      Steps ({quickParsed.steps.length})
-                    </p>
-                    {quickParsed.steps.map(step => (
-                      <div key={step.step_number} style={{ marginBottom: 8 }}>
-                        <p style={{ fontSize: 12, fontWeight: 700, color: "#2d5a27" }}>Step {step.step_number}</p>
-                        <p style={{ fontSize: 12, color: "#555" }}>🇬🇧 {step.instruction}</p>
-                        {step.instruction_it && <p style={{ fontSize: 12, color: "#888" }}>🇮🇹 {step.instruction_it}</p>}
-                      </div>
-                    ))}
-                  </div>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: "#999", textTransform: "uppercase" as const, marginBottom: 6, marginTop: 12 }}>Steps ({quickParsed.steps.length})</p>
+                  {quickParsed.steps.map(step => (
+                    <div key={step.step_number} style={{ marginBottom: 6 }}>
+                      <p style={{ fontSize: 11, fontWeight: 700, color: "#2d5a27" }}>Step {step.step_number}</p>
+                      <p style={{ fontSize: 12, color: "#555" }}>🇬🇧 {step.instruction}</p>
+                      {step.instruction_it && <p style={{ fontSize: 12, color: "#888" }}>🇮🇹 {step.instruction_it}</p>}
+                    </div>
+                  ))}
 
-                  {/* Save button */}
                   <button onClick={quickSave} disabled={quickSaving}
-                    style={{ ...s.btn, ...s.green, width: "100%", padding: "13px", fontSize: 15, opacity: quickSaving ? 0.7 : 1 }}>
-                    {quickSaving ? "Saving to database..." : "✓ Save to database"}
+                    style={{ ...s.btn, ...s.green, width: "100%", padding: "13px", fontSize: 15, marginTop: 16, opacity: quickSaving ? 0.7 : 1 }}>
+                    {quickSaving ? "Saving..." : "✓ Save to database"}
                   </button>
                   {quickMsg && (
-                    <p style={{ fontSize: 13, marginTop: 10, color: quickMsg.startsWith("✓") ? "#2d5a27" : "#dc2626", fontWeight: 600, lineHeight: 1.5 }}>
-                      {quickMsg}
-                    </p>
+                    <p style={{ fontSize: 13, marginTop: 10, fontWeight: 600, lineHeight: 1.5, color: quickMsg.startsWith("✓") ? "#2d5a27" : "#dc2626" }}>{quickMsg}</p>
                   )}
                 </div>
               )}
 
-              {/* Placeholder before preview */}
               {!quickParsed && (
-                <div style={{ ...s.card, textAlign: "center", padding: "40px 24px", color: "#aaa" }}>
+                <div style={{ ...s.card, textAlign: "center" as const, padding: "48px 24px", color: "#bbb" }}>
                   <div style={{ fontSize: 48, marginBottom: 12 }}>👁</div>
-                  <p style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>Fill in the template</p>
-                  <p style={{ fontSize: 13 }}>Then click "Preview parsed data" to check everything before saving</p>
+                  <p style={{ fontSize: 15, fontWeight: 600, color: "#999" }}>Fill in the template</p>
+                  <p style={{ fontSize: 13, marginTop: 6 }}>then click Preview</p>
                 </div>
               )}
             </div>
@@ -620,50 +574,45 @@ export default function AdminPage() {
   }
 
   // ── LIST VIEW ─────────────────────────────────────────────────────────────────
-  if (view === "list") {
-    return (
-      <div style={{ minHeight: "100vh", background: "#f5f5f5" }}>
-        <Header subtitle={`${recipes.length} recipes`} />
-        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 24px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 24 }}>
-            <div>
-              <h2 style={{ fontSize: 24, fontWeight: 700, marginBottom: 4 }}>All Recipes</h2>
-              <p style={{ color: "#888", fontSize: 14 }}>{recipes.length} dishes · click to edit</p>
-            </div>
-          </div>
-          {loading ? (
-            <p style={{ color: "#888", textAlign: "center", padding: 40 }}>Loading...</p>
-          ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
-              {recipes.map(recipe => (
-                <div key={recipe.id} style={{ background: "#fff", borderRadius: 12, border: "1px solid #e5e5e5", overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
-                  <div style={{ position: "relative", height: 130 }}>
-                    <img src={recipe.image_url} alt={recipe.name}
-                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                      onError={e => { (e.target as HTMLImageElement).src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23eef4ed' width='100' height='100'/%3E%3Ctext y='55' x='50' text-anchor='middle' font-size='30'%3E🍽%3C/text%3E%3C/svg%3E" }} />
-                    <span style={{ position: "absolute", top: 8, left: 8, background: "rgba(0,0,0,0.6)", color: "#fff", borderRadius: 6, padding: "2px 8px", fontSize: 11, fontWeight: 700 }}>#{recipe.id}</span>
-                    {recipe.name_it && <span style={{ position: "absolute", top: 8, right: 8, fontSize: 16 }}>🇮🇹</span>}
+  if (view === "list") return (
+    <div style={{ minHeight: "100vh", background: "#f5f5f5" }}>
+      <Header subtitle={`${recipes.length} recipes`} />
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 24px" }}>
+        <div style={{ marginBottom: 24 }}>
+          <h2 style={{ fontSize: 24, fontWeight: 700, marginBottom: 4 }}>All Recipes</h2>
+          <p style={{ color: "#888", fontSize: 14 }}>{recipes.length} dishes in the database</p>
+        </div>
+        {loading ? (
+          <p style={{ color: "#888", textAlign: "center", padding: 40 }}>Loading...</p>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+            {recipes.map(recipe => (
+              <div key={recipe.id} style={{ background: "#fff", borderRadius: 12, border: "1px solid #e5e5e5", overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+                <div style={{ position: "relative", height: 130 }}>
+                  <img src={recipe.image_url} alt={recipe.name} style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    onError={e => { (e.target as HTMLImageElement).src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23eef4ed' width='100' height='100'/%3E%3Ctext y='55' x='50' text-anchor='middle' font-size='28'%3E🍽%3C/text%3E%3C/svg%3E" }} />
+                  <span style={{ position: "absolute", top: 8, left: 8, background: "rgba(0,0,0,0.6)", color: "#fff", borderRadius: 6, padding: "2px 8px", fontSize: 11, fontWeight: 700 }}>#{recipe.id}</span>
+                  {recipe.name_it && <span style={{ position: "absolute", top: 8, right: 8, fontSize: 16 }}>🇮🇹</span>}
+                </div>
+                <div style={{ padding: "12px 14px" }}>
+                  <p style={{ fontWeight: 700, fontSize: 14, marginBottom: 2 }}>{recipe.name}</p>
+                  {recipe.name_it && <p style={{ fontSize: 11, color: "#888", marginBottom: 6 }}>🇮🇹 {recipe.name_it}</p>}
+                  <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+                    <span style={{ fontSize: 11, color: "#888" }}>⏱ {recipe.cook_time}m</span>
+                    <span style={{ fontSize: 11, color: "#888" }}>🔥 {recipe.calories}kcal</span>
                   </div>
-                  <div style={{ padding: "12px 14px" }}>
-                    <p style={{ fontWeight: 700, fontSize: 14, marginBottom: 2 }}>{recipe.name}</p>
-                    {recipe.name_it && <p style={{ fontSize: 11, color: "#888", marginBottom: 6 }}>🇮🇹 {recipe.name_it}</p>}
-                    <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
-                      <span style={{ fontSize: 11, color: "#888" }}>⏱ {recipe.cook_time}m</span>
-                      <span style={{ fontSize: 11, color: "#888" }}>🔥 {recipe.calories}kcal</span>
-                    </div>
-                    <div style={{ display: "flex", gap: 6 }}>
-                      <button onClick={() => loadRecipeDetails(recipe)} style={{ ...s.btn, ...s.green, flex: 1, padding: "7px 10px", fontSize: 12 }}>Edit</button>
-                      <button onClick={() => deleteRecipe(recipe.id)} style={{ ...s.btn, ...s.red, padding: "7px 10px", fontSize: 12 }}>Del</button>
-                    </div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button onClick={() => loadRecipeDetails(recipe)} style={{ ...s.btn, ...s.green, flex: 1, padding: "7px 10px", fontSize: 12 }}>Edit</button>
+                    <button onClick={() => deleteRecipe(recipe.id)} style={{ ...s.btn, ...s.red, padding: "7px 10px", fontSize: 12 }}>Del</button>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
-    )
-  }
+    </div>
+  )
 
   // ── EDIT / NEW VIEW ───────────────────────────────────────────────────────────
   return (
@@ -671,26 +620,28 @@ export default function AdminPage() {
       <Header subtitle={view === "new" ? "New Recipe" : `Editing #${selected?.id} — ${selected?.name}`} />
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 24px" }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 24 }}>
+
+          {/* LEFT */}
           <div>
             <div style={s.card}>
               <p style={s.sectionTitle}>📋 Basic Information</p>
               <div style={{ ...s.grid2, marginBottom: 16 }}>
                 <div>
-                  <label style={s.label}><span style={s.flag}>🇬🇧</span>Name (English)</label>
+                  <label style={s.label}>🇬🇧 Name (English)</label>
                   <input style={s.input} value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Lemon Herb Chicken" />
                 </div>
                 <div>
-                  <label style={s.label}><span style={s.flag}>🇮🇹</span>Nome (Italiano)</label>
+                  <label style={s.label}>🇮🇹 Nome (Italiano)</label>
                   <input style={s.input} value={form.name_it} onChange={e => setForm(p => ({ ...p, name_it: e.target.value }))} placeholder="es. Pollo alle Erbe e Limone" />
                 </div>
               </div>
               <div style={s.grid2}>
                 <div>
-                  <label style={s.label}><span style={s.flag}>🇬🇧</span>Description (English)</label>
+                  <label style={s.label}>🇬🇧 Description</label>
                   <textarea style={s.textarea} value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} />
                 </div>
                 <div>
-                  <label style={s.label}><span style={s.flag}>🇮🇹</span>Descrizione (Italiano)</label>
+                  <label style={s.label}>🇮🇹 Descrizione</label>
                   <textarea style={s.textarea} value={form.description_it} onChange={e => setForm(p => ({ ...p, description_it: e.target.value }))} />
                 </div>
               </div>
@@ -699,13 +650,11 @@ export default function AdminPage() {
             <div style={s.card}>
               <p style={s.sectionTitle}>🥦 Ingredients</p>
               <div style={{ display: "grid", gridTemplateColumns: "2fr 80px 80px 120px 32px", gap: 8, marginBottom: 8 }}>
-                {["Name", "Amount", "Unit", "Category", ""].map(h => (
-                  <span key={h} style={{ fontSize: 11, fontWeight: 700, color: "#999", textTransform: "uppercase" as const }}>{h}</span>
-                ))}
+                {["Name","Amount","Unit","Category",""].map(h => <span key={h} style={{ fontSize: 11, fontWeight: 700, color: "#999", textTransform: "uppercase" as const }}>{h}</span>)}
               </div>
               {ingredients.map((ing, i) => (
                 <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 80px 80px 120px 32px", gap: 8, marginBottom: 8 }}>
-                  <input style={s.input} value={ing.name} onChange={e => updateIngredient(i, "name", e.target.value)} placeholder="Name" />
+                  <input style={s.input} value={ing.name} onChange={e => updateIngredient(i, "name", e.target.value)} placeholder="Ingredient" />
                   <input style={s.input} type="number" value={ing.amount || ""} onChange={e => updateIngredient(i, "amount", parseFloat(e.target.value) || 0)} />
                   <select style={s.select} value={ing.unit} onChange={e => updateIngredient(i, "unit", e.target.value)}>
                     {["g","kg","ml","l","tsp","tbsp","cup","pcs","cloves","pinch"].map(u => <option key={u}>{u}</option>)}
@@ -729,11 +678,11 @@ export default function AdminPage() {
                   </div>
                   <div style={s.grid2}>
                     <div>
-                      <label style={s.label}><span style={s.flag}>🇬🇧</span>English</label>
+                      <label style={s.label}>🇬🇧 English</label>
                       <textarea style={s.textarea} value={step.instruction} onChange={e => updateStep(i, "instruction", e.target.value)} />
                     </div>
                     <div>
-                      <label style={s.label}><span style={s.flag}>🇮🇹</span>Italiano</label>
+                      <label style={s.label}>🇮🇹 Italiano</label>
                       <textarea style={s.textarea} value={step.instruction_it} onChange={e => updateStep(i, "instruction_it", e.target.value)} />
                     </div>
                   </div>
@@ -743,6 +692,7 @@ export default function AdminPage() {
             </div>
           </div>
 
+          {/* RIGHT */}
           <div>
             <div style={s.card}>
               <p style={s.sectionTitle}>📸 Photo</p>
@@ -754,10 +704,10 @@ export default function AdminPage() {
               <button onClick={() => fileRef.current?.click()} style={{ ...s.btn, ...s.grey, width: "100%", marginBottom: 10, fontSize: 13 }}>
                 {imagePreview ? "Change photo" : "Upload photo"}
               </button>
-              <label style={s.label}>Or paste image URL / path</label>
+              <label style={s.label}>Or paste URL / local path</label>
               <input style={s.input} value={form.image_url} placeholder="/images/dish-01-name.png"
                 onChange={e => { setForm(p => ({ ...p, image_url: e.target.value })); setImagePreview(e.target.value) }} />
-              {uploadingImage && <p style={{ fontSize: 12, color: "#888", marginTop: 6 }}>Uploading...</p>}
+              <p style={{ fontSize: 11, color: "#aaa", marginTop: 6 }}>Leave blank — auto-generated from recipe name if empty</p>
             </div>
 
             <div style={s.card}>
@@ -783,7 +733,7 @@ export default function AdminPage() {
               <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 6, marginBottom: 10 }}>
                 {form.tags.map(tag => (
                   <span key={tag} style={{ background: "#eef4ed", color: "#2d5a27", borderRadius: 999, padding: "3px 10px", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
-                    {tag} <span onClick={() => removeTag(tag)} style={{ cursor: "pointer", fontWeight: 700 }}>×</span>
+                    {tag} <span onClick={() => removeTag(tag)} style={{ cursor: "pointer" }}>×</span>
                   </span>
                 ))}
               </div>
@@ -796,25 +746,25 @@ export default function AdminPage() {
 
             <div style={s.card}>
               <p style={s.sectionTitle}>🥗 Dietary Info</p>
-              <div style={{ marginBottom: 14 }}>
-                <label style={{ ...s.label, marginBottom: 8 }}>Diet types</label>
-                {["omnivore","vegetarian","vegan","pescatarian"].map(type => (
-                  <label key={type} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, cursor: "pointer", fontSize: 14 }}>
-                    <input type="checkbox" checked={form.diet_types.includes(type)} onChange={() => toggleDietType(type)} />
-                    <span style={{ textTransform: "capitalize" }}>{type}</span>
+              <label style={{ ...s.label, marginBottom: 10 }}>Diet types</label>
+              {["omnivore","vegetarian","vegan","pescatarian"].map(type => (
+                <label key={type} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, cursor: "pointer", fontSize: 14 }}>
+                  <input type="checkbox" checked={form.diet_types.includes(type)} onChange={() => toggleDietType(type)} />
+                  <span style={{ textTransform: "capitalize" }}>{type}</span>
+                </label>
+              ))}
+              <div style={{ marginTop: 12 }}>
+                {[{ key: "is_vegetarian", label: "Vegetarian 🥦" }, { key: "is_vegan", label: "Vegan 🌱" }, { key: "is_gluten_free", label: "Gluten-free 🌾" }].map(flag => (
+                  <label key={flag.key} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, cursor: "pointer", fontSize: 14 }}>
+                    <input type="checkbox" checked={(form as any)[flag.key]} onChange={e => setForm(p => ({ ...p, [flag.key]: e.target.checked }))} />
+                    {flag.label}
                   </label>
                 ))}
               </div>
-              {[{ key: "is_vegetarian", label: "Vegetarian 🥦" }, { key: "is_vegan", label: "Vegan 🌱" }, { key: "is_gluten_free", label: "Gluten-free 🌾" }].map(flag => (
-                <label key={flag.key} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, cursor: "pointer", fontSize: 14 }}>
-                  <input type="checkbox" checked={(form as any)[flag.key]} onChange={e => setForm(p => ({ ...p, [flag.key]: e.target.checked }))} />
-                  {flag.label}
-                </label>
-              ))}
             </div>
 
             <button onClick={save} disabled={saving} style={{ ...s.btn, ...s.green, width: "100%", padding: "14px", fontSize: 16, opacity: saving ? 0.7 : 1 }}>
-              {saving ? "Saving..." : (view === "new" ? "Create recipe ✓" : "Save changes ✓")}
+              {saving ? "Saving..." : view === "new" ? "Create recipe ✓" : "Save changes ✓"}
             </button>
             {saveMsg && <p style={{ textAlign: "center", marginTop: 10, fontSize: 14, fontWeight: 600, color: saveMsg.startsWith("✓") ? "#2d5a27" : "#dc2626" }}>{saveMsg}</p>}
           </div>
