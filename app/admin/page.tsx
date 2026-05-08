@@ -283,12 +283,11 @@ export default function AdminPage() {
         : "dish"
       const ext = file.name.split(".").pop()
       const filename = `dish-${nextId}-${slug}.${ext}`
-      const { error } = await supabase.storage.from("recipe-images").upload(filename, file, { upsert: true })
-      let finalUrl = `/images/${filename}`
-      if (!error) {
-        const { data } = supabase.storage.from("recipe-images").getPublicUrl(filename)
-        finalUrl = data.publicUrl
-      }
+      const { error: uploadError } = await supabase.storage.from("recipe-images").upload(filename, file, { upsert: true })
+      const { data: urlData } = supabase.storage.from("recipe-images").getPublicUrl(filename)
+      const finalUrl = urlData.publicUrl
+      console.log("Upload error:", uploadError)
+      console.log("Final URL:", finalUrl)
       setQuickImageUrl(finalUrl)
       setQuickText(prev => prev.replace(/^IMAGE_URL:.*$/m, `IMAGE_URL: ${finalUrl}`))
     } catch (err) {
