@@ -67,6 +67,7 @@ export async function fetchAllRecipes(lang: string = "en"): Promise<Menu[]> {
       .filter(i => i.recipe_id === r.id)
       .map(i => ({
         name: lang === "it" && i.name_it ? i.name_it : i.name,
+        name_it: i.name_it || "",
         amount: i.amount,
         unit: i.unit,
         category: i.category as Ingredient["category"]

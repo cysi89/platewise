@@ -13,26 +13,23 @@
   recipe_steps: string[]
   ingredients: Ingredient[]
 }
-
 export interface Ingredient {
   name: string
+  name_it?: string
   amount: number
   unit: string
   category: "protein" | "vegetable" | "pantry" | "dairy" | "grain"
 }
-
 export interface DaySelection {
   day: string
   date: string
   menu: Menu | null
   skipped: boolean
 }
-
 export interface UserPrefs {
   household_size: number
   diet_type: string
   cook_time_pref: number
   allergies: string[]
 }
-
 export const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
