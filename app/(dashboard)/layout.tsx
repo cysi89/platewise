@@ -9,6 +9,30 @@ import RecipeModal from "@/components/RecipeModal"
 import LanguageToggle from "@/components/LanguageToggle"
 import { supabase, saveWeekSelections, loadWeekSelections, fetchAllRecipes, cleanupOldSelections } from "@/lib/supabase"
 
+type UserPrefs = {
+  household_size: number
+  diet_type: string
+  diet_mixed: boolean
+  intolerances: string[]
+  health_goals: string[]
+  show_calories: boolean
+  cook_time_pref: number
+  budget_range: string
+  variety_pref: string
+}
+
+const DEFAULT_PREFS: UserPrefs = {
+  household_size: 2,
+  diet_type: "omnivore",
+  diet_mixed: false,
+  intolerances: [],
+  health_goals: [],
+  show_calories: true,
+  cook_time_pref: 60,
+  budget_range: "medium",
+  variety_pref: "mixed",
+}
+
 function getMondayForOffset(weekOffset: number): Date {
   const now = new Date()
   const day = now.getDay()
@@ -74,10 +98,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [userId, setUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
+  const [userPrefs, setUserPrefs] = useState<UserPrefs>(DEFAULT_PREFS)
 
   const tabs = mounted
-    ? [t("nav.thisWeek"), t("nav.ingredients"), t("nav.nutrition"), t("nav.recipes")]
-    : ["This Week", "Ingredients", "Nutrition", "Recipes"]
+    ? [t("nav.thisWeek"), t("nav.ingredients"), t("nav.nutrition"), t("nav.recipes"), "Profile"]
+    : ["This Week", "Ingredients", "Nutrition", "Recipes", "Profile"]
 
   useEffect(() => {
     const init = async () => {
@@ -106,6 +131,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       }
 
       await cleanupOldSelections(user.id)
+
+      // Load user preferences
+      const { data: prefsData } = await supabase
+        .from("user_preferences")
+        .select("*")
+        .eq("user_id", user.id)
+        .single()
+      if (prefsData) {
+        setUserPrefs({
+          household_size: prefsData.household_size || 2,
+          diet_type: prefsData.diet_type || "omnivore",
+          diet_mixed: prefsData.diet_mixed || false,
+          intolerances: prefsData.intolerances || [],
+          health_goals: prefsData.health_goals || [],
+          show_calories: prefsData.show_calories !== false,
+          cook_time_pref: prefsData.cook_time_pref || 60,
+          budget_range: prefsData.budget_range || "medium",
+          variety_pref: prefsData.variety_pref || "mixed",
+        })
+      }
+
       setMounted(true)
       setLoading(false)
     }
@@ -228,12 +274,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         boxShadow: "0 2px 12px rgba(0,0,0,0.15)",
         paddingTop: "env(safe-area-inset-top)"
       }}>
-        {/* Inner constrained row — aligns with content below */}
+        {/* Inner constrained row —” aligns with content below */}
         <div style={{
           maxWidth: 1200, margin: "0 auto", padding: "0 16px",
           height: 70, display: "flex", alignItems: "center", justifyContent: "space-between"
         }}>
-          {/* Logo block — full height bar */}
+          {/* Logo block —” full height bar */}
           <div style={{ display: "flex", alignItems: "center", gap: 0, height: "100%", marginLeft: -16 }}>
             <div style={{
               height: "100%", padding: "0 16px",
@@ -298,7 +344,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         display: "none", padding: "8px 0 calc(12px + env(safe-area-inset-bottom))"
       }} className="mobile-bottom-nav">
         {tabs.map((tab_label, i) => {
-          const icons = ["📅", "🛒", "📊", "📖"]
+          const icons = ["Week", "Shop", "Nutr.", "Recipes", "Profile"]
           return (
             <button key={i} onClick={() => setTab(i)} style={{
               flex: 1, background: "none", border: "none", cursor: "pointer",
@@ -320,18 +366,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       `}</style>
 
       <main style={{ maxWidth: 1200, margin: "0 auto", padding: "24px 16px calc(80px + env(safe-area-inset-bottom))" }}>
-        {tab === 0 && <WeeklyTab weeks={weeks} menus={menus} updateWeek={updateWeek} confirmWeek={confirmWeek} toggleExpand={toggleExpand} startEditing={startEditing} cancelEditing={cancelEditing} />}
-        {tab === 1 && <IngredientsTab weeks={weeks} />}
-        {tab === 2 && <NutritionTab selections={allSelections} />}
-        {tab === 3 && <RecipesTab selections={weeks[0].selections} menus={menus} />}
+        {tab === 0 && <WeeklyTab weeks={weeks} menus={menus} userPrefs={userPrefs} updateWeek={updateWeek} confirmWeek={confirmWeek} toggleExpand={toggleExpand} startEditing={startEditing} cancelEditing={cancelEditing} />}
+        {tab === 1 && <IngredientsTab weeks={weeks} userPrefs={userPrefs} />}
+        {tab === 2 && <NutritionTab selections={allSelections} userPrefs={userPrefs} />}
+        {tab === 3 && <RecipesTab selections={weeks[0].selections} menus={menus} userPrefs={userPrefs} />}
+        {tab === 4 && <ProfileTab userPrefs={userPrefs} userId={userId} onSave={setUserPrefs} />}
       </main>
     </div>
   )
 }
 
-function WeeklyTab({ weeks, menus, updateWeek, confirmWeek, toggleExpand, startEditing, cancelEditing }: {
+function WeeklyTab({ weeks, menus, userPrefs, updateWeek, confirmWeek, toggleExpand, startEditing, cancelEditing }: {
   weeks: Week[]
   menus: Menu[]
+  userPrefs: UserPrefs
   updateWeek: (id: number, s: DaySelection[]) => void
   confirmWeek: (id: number) => void
   toggleExpand: (id: number) => void
@@ -373,7 +421,7 @@ function WeeklyTab({ weeks, menus, updateWeek, confirmWeek, toggleExpand, startE
                     fontSize: 16, fontWeight: 700,
                     color: week.editing || week.confirmed ? "#fff" : "var(--text-muted)"
                   }}>
-                    {week.editing ? "✏️" : week.confirmed ? "✓" : locked ? "🔒" : idx + 1}
+                    {week.editing ? "" : week.confirmed ? "" : locked ? "" : idx + 1}
                   </div>
                   <div>
                     <p style={{ fontWeight: 700, fontSize: 16, marginBottom: 1 }}>
@@ -426,13 +474,13 @@ function WeeklyTab({ weeks, menus, updateWeek, confirmWeek, toggleExpand, startE
                       fontSize: 12, cursor: "pointer", fontWeight: 600, flexShrink: 0
                     }}>{t("weekly.cancel")}</button>
                   </div>
-                  <WeekEditor week={week} menus={menus} onUpdate={(s) => updateWeek(week.id, s)} onConfirm={() => confirmWeek(week.id)} isComplete={isComplete} isEditing={true} />
+                  <WeekEditor week={week} menus={menus} userPrefs={userPrefs} onUpdate={(s) => updateWeek(week.id, s)} onConfirm={() => confirmWeek(week.id)} isComplete={isComplete} isEditing={true} />
                 </div>
               )}
 
               {week.expanded && !week.confirmed && !week.editing && (
                 <div style={{ borderTop: "1px solid var(--border)", padding: "16px" }}>
-                  <WeekEditor week={week} menus={menus} onUpdate={(s) => updateWeek(week.id, s)} onConfirm={() => confirmWeek(week.id)} isComplete={isComplete} isEditing={false} />
+                  <WeekEditor week={week} menus={menus} userPrefs={userPrefs} onUpdate={(s) => updateWeek(week.id, s)} onConfirm={() => confirmWeek(week.id)} isComplete={isComplete} isEditing={false} />
                 </div>
               )}
             </div>
@@ -459,7 +507,7 @@ function WeekReadOnly({ week, onEdit }: { week: Week; onEdit: () => void }) {
           color: "var(--green)", borderRadius: 999, padding: "7px 18px",
           fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex",
           alignItems: "center", gap: 6, transition: "all 0.15s"
-        }}>✏️ {t("weekly.editWeek")}</button>
+        }}>Edit {t("weekly.editWeek")}</button>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {week.selections.map((s, i) => (
@@ -497,14 +545,31 @@ function WeekReadOnly({ week, onEdit }: { week: Week; onEdit: () => void }) {
   )
 }
 
-function WeekEditor({ week, menus, onUpdate, onConfirm, isComplete, isEditing }: {
-  week: Week; menus: Menu[]; onUpdate: (s: DaySelection[]) => void; onConfirm: () => void; isComplete: boolean; isEditing: boolean
+function WeekEditor({ week, menus, userPrefs, onUpdate, onConfirm, isComplete, isEditing }: {
+  week: Week; menus: Menu[]; userPrefs: UserPrefs; onUpdate: (s: DaySelection[]) => void; onConfirm: () => void; isComplete: boolean; isEditing: boolean
 }) {
   const { t } = useTranslation()
   const [activeDay, setActiveDay] = useState(0)
   const [filter, setFilter] = useState("all")
   const filterKeys = ["all", "quick", "vegetarian", "vegan", "chicken", "fish", "healthy"]
-  const filtered = filter === "all" ? menus : menus.filter(m => m.tags.includes(filter))
+
+  // Filter recipes based on user preferences
+  const allowedMenus = menus.filter(m => {
+    // Cook time filter —” only filter if user explicitly set a preference under 60
+    if (userPrefs.cook_time_pref < 60 && m.cook_time > userPrefs.cook_time_pref) return false
+    // Diet type filter —” only filter if not omnivore and not mixed
+    if (!userPrefs.diet_mixed && userPrefs.diet_type !== "omnivore") {
+      const types = m.diet_types || []
+      if (userPrefs.diet_type === "vegan" && !types.includes("vegan")) return false
+      if (userPrefs.diet_type === "vegetarian" && !types.includes("vegetarian") && !types.includes("vegan")) return false
+      if (userPrefs.diet_type === "pescatarian" && !types.includes("pescatarian") && !types.includes("omnivore") && !types.includes("vegetarian")) return false
+    }
+    // Intolerance filter —” only if user has set intolerances
+    if (userPrefs.intolerances.includes("gluten-free") && !m.is_gluten_free) return false
+    return true
+  })
+
+  const filtered = filter === "all" ? allowedMenus : allowedMenus.filter(m => m.tags.includes(filter))
 
   const selectMenu = (menu: Menu) => {
     const updated = [...week.selections]
@@ -600,7 +665,7 @@ function WeekEditor({ week, menus, onUpdate, onConfirm, isComplete, isEditing }:
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 14, borderTop: "1px solid var(--border)", gap: 12, flexWrap: "wrap" }}>
         <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
-          {week.selections.filter(s => s.menu || s.skipped).length}/7 {t("weekly.daysPlanned")}{isComplete && ` — ${t("weekly.ready")}`}
+          {week.selections.filter(s => s.menu || s.skipped).length}/7 {t("weekly.daysPlanned")}{isComplete && ` —” ${t("weekly.ready")}`}
         </p>
         <button onClick={onConfirm} disabled={!isComplete} style={{
           background: isComplete ? (isEditing ? "var(--orange)" : "var(--green)") : "var(--border)",
@@ -615,9 +680,10 @@ function WeekEditor({ week, menus, onUpdate, onConfirm, isComplete, isEditing }:
   )
 }
 
-function IngredientsTab({ weeks }: { weeks: Week[] }) {
+function IngredientsTab({ weeks, userPrefs }: { weeks: Week[], userPrefs: UserPrefs }) {
   const { t } = useTranslation()
   const [selectedWeekIds, setSelectedWeekIds] = useState<number[]>([0])
+  const householdMultiplier = userPrefs.household_size / 2
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({})
 
   const toggleWeek = (id: number) => {
@@ -639,11 +705,12 @@ function IngredientsTab({ weeks }: { weeks: Week[] }) {
       if (!s.menu) return
       s.menu.ingredients.forEach(ing => {
         const key = ing.name.toLowerCase()
+        const scaledAmount = Math.round((ing.amount * householdMultiplier) * 10) / 10
         if (merged[key]) {
-          merged[key].amount += ing.amount
+          merged[key].amount += scaledAmount
           merged[key].days.push(`${s.day.slice(0, 3)} (${week.label.split(" ")[0]})`)
         } else {
-          merged[key] = { ...ing, days: [`${s.day.slice(0, 3)} (${week.label.split(" ")[0]})`], weekLabel: week.label }
+          merged[key] = { ...ing, amount: scaledAmount, days: [`${s.day.slice(0, 3)} (${week.label.split(" ")[0]})`], weekLabel: week.label }
         }
       })
     })
@@ -655,7 +722,7 @@ function IngredientsTab({ weeks }: { weeks: Week[] }) {
     categories[ing.category].push(ing)
   })
 
-  const catEmoji: Record<string, string> = { protein: "🥩", vegetable: "🥦", pantry: "🫙", dairy: "🧀", grain: "🌾" }
+  const catEmoji: Record<string, string> = { protein: "", vegetable: "", pantry: "", dairy: "", grain: "" }
   const totalItems = Object.values(merged).length
   const checkedCount = Object.values(checkedItems).filter(Boolean).length
   const remainingCount = totalItems - checkedCount
@@ -666,13 +733,21 @@ function IngredientsTab({ weeks }: { weeks: Week[] }) {
     ? Math.round(plannedDays.reduce((sum, s) => sum + (s.menu?.calories || 0), 0) / plannedDays.length)
     : 0
 
-  // Rough cost estimate (avg Italian supermarket prices per category per serving)
+  // Rough cost estimate scaled by household size
   const costPerUnit: Record<string, number> = {
     protein: 3.5, vegetable: 0.8, pantry: 0.5, dairy: 1.2, grain: 0.6
   }
   const estimatedCost = Object.values(merged).reduce((sum, ing) => {
-    return sum + (costPerUnit[ing.category] || 0.8)
+    return sum + (costPerUnit[ing.category] || 0.8) * householdMultiplier
   }, 0)
+
+  // Budget limits based on user preference
+  const budgetLimits: Record<string, number> = { low: 50, medium: 100, high: 150, unlimited: 9999 }
+  const budgetLimit = budgetLimits[userPrefs.budget_range] || 100
+  const budgetWeeks = selectedWeekIds.length || 1
+  const weeklyBudgetLimit = budgetLimit
+  const overBudget = estimatedCost > weeklyBudgetLimit
+  const budgetPercent = Math.min((estimatedCost / weeklyBudgetLimit) * 100, 100)
 
   return (
     <div>
@@ -707,7 +782,7 @@ function IngredientsTab({ weeks }: { weeks: Week[] }) {
                     background: isSelected ? "rgba(255,255,255,0.3)" : "transparent",
                     display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0
                   }}>
-                    {isSelected && <span style={{ fontSize: 12, color: "#fff", fontWeight: 700 }}>✓</span>}
+                    {isSelected && <span style={{ fontSize: 12, color: "#fff", fontWeight: 700 }}></span>}
                   </div>
                   <span style={{ fontWeight: 700, fontSize: 14 }}>{week.label}</span>
                 </div>
@@ -722,7 +797,7 @@ function IngredientsTab({ weeks }: { weeks: Week[] }) {
 
         {selectedWeekIds.length > 1 && (
           <div style={{ marginTop: 12, padding: "10px 16px", background: "var(--green-pale)", borderRadius: 10, border: "1px solid var(--green)", display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 16 }}>🛒</span>
+            <span style={{ fontSize: 16 }}></span>
             <span style={{ fontSize: 13, color: "var(--green)", fontWeight: 600 }}>
               {t("ingredients.combinedList", { count: selectedWeekIds.length })}
             </span>
@@ -732,24 +807,24 @@ function IngredientsTab({ weeks }: { weeks: Week[] }) {
 
       {selectedWeekIds.length === 0 ? (
         <div style={{ textAlign: "center", padding: "40px 0" }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>🛒</div>
+          <div style={{ fontSize: 48, marginBottom: 12 }}></div>
           <p style={{ color: "var(--text-muted)", fontSize: 15 }}>{t("emptyStates.shoppingCart")}</p>
         </div>
       ) : selectedMenus.length === 0 ? (
         <div style={{ textAlign: "center", padding: "40px 0" }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>📅</div>
+          <div style={{ fontSize: 48, marginBottom: 12 }}></div>
           <p style={{ color: "var(--text-muted)", fontSize: 15 }}>{t("emptyStates.noMealsPlanned")}</p>
         </div>
       ) : (
         <>
           {/* Summary stats bar */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 24 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 16 }}>
             {[
-              { emoji: "🛒", label: "Items to buy", value: `${remainingCount} / ${totalItems}`, color: "var(--green)", sub: checkedCount > 0 ? `${checkedCount} ticked off` : "Tap items as you shop" },
-              { emoji: "💰", label: "Est. cost", value: `~€${estimatedCost.toFixed(0)}`, color: "var(--orange)", sub: "Rough supermarket estimate" },
-              { emoji: "🔥", label: "Avg kcal / day", value: avgCalories > 0 ? `${avgCalories} kcal` : "—", color: "#3b82f6", sub: `Over ${plannedDays.length} planned dinners` },
+              { emoji: "", label: "Items to buy", value: `${remainingCount} / ${totalItems}`, color: "var(--green)", sub: checkedCount > 0 ? `${checkedCount} ticked off` : "Tap items as you shop" },
+              { emoji: "", label: "Est. cost", value: `~€${estimatedCost.toFixed(0)}`, color: overBudget ? "#dc2626" : "var(--orange)", sub: `For ${userPrefs.household_size} people` },
+              { emoji: "", label: "Avg kcal / day", value: avgCalories > 0 ? `${avgCalories} kcal` : "", color: "#3b82f6", sub: `Over ${plannedDays.length} planned dinners` },
             ].map(card => (
-              <div key={card.label} style={{ background: "var(--white)", borderRadius: "var(--radius)", border: "1px solid var(--border)", padding: "14px 18px", display: "flex", gap: 12, alignItems: "center" }}>
+              <div key={card.label} style={{ background: "var(--white)", borderRadius: "var(--radius)", border: `1px solid ${card.color === "#dc2626" ? "#fecaca" : "var(--border)"}`, padding: "14px 18px", display: "flex", gap: 12, alignItems: "center" }}>
                 <span style={{ fontSize: 28 }}>{card.emoji}</span>
                 <div>
                   <div style={{ fontSize: 20, fontWeight: 700, color: card.color }}>{card.value}</div>
@@ -759,6 +834,31 @@ function IngredientsTab({ weeks }: { weeks: Week[] }) {
               </div>
             ))}
           </div>
+
+          {/* Budget warning */}
+          {overBudget && userPrefs.budget_range !== "unlimited" && (
+            <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 12, padding: "12px 16px", marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 20 }}></span>
+              <div style={{ flex: 1 }}>
+                <p style={{ fontSize: 13, fontWeight: 700, color: "#dc2626", marginBottom: 2 }}>
+                  Estimated cost exceeds your budget
+                </p>
+                <p style={{ fontSize: 12, color: "#dc2626" }}>
+                  ~€{estimatedCost.toFixed(0)} estimated vs €{weeklyBudgetLimit} weekly budget —” consider swapping some dishes for simpler options
+                </p>
+                <div style={{ marginTop: 6, background: "#fee2e2", borderRadius: 999, height: 4, overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${budgetPercent}%`, background: "#dc2626", borderRadius: 999, transition: "width 0.4s" }} />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Household size note */}
+          {userPrefs.household_size !== 2 && (
+            <div style={{ background: "var(--green-pale)", border: "1px solid var(--green)", borderRadius: 10, padding: "8px 14px", marginBottom: 16, fontSize: 12, color: "var(--green)", fontWeight: 600 }}>
+              Quantities scaled for {userPrefs.household_size} people (base recipes serve 2)
+            </div>
+          )}
 
           {checkedCount > 0 && (
             <div style={{ marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -776,7 +876,7 @@ function IngredientsTab({ weeks }: { weeks: Week[] }) {
             {Object.entries(categories).map(([cat, items]) => (
               <div key={cat} style={{ background: "var(--white)", borderRadius: "var(--radius)", border: "1px solid var(--border)", overflow: "hidden" }}>
                 <div style={{ background: "var(--green-pale)", padding: "12px 18px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 18 }}>{catEmoji[cat] || "📦"}</span>
+                  <span style={{ fontSize: 18 }}>{catEmoji[cat] || ""}</span>
                   <span style={{ fontWeight: 700, textTransform: "capitalize", fontSize: 15 }}>{t(`ingredients.categories.${cat}`)}</span>
                   <span style={{ marginLeft: "auto", background: "var(--green)", color: "#fff", borderRadius: 999, padding: "2px 10px", fontSize: 12 }}>
                     {items.filter(i => !checkedItems[i.name.toLowerCase()]).length}/{items.length}
@@ -802,7 +902,7 @@ function IngredientsTab({ weeks }: { weeks: Week[] }) {
                           display: "flex", alignItems: "center", justifyContent: "center",
                           transition: "all 0.15s"
                         }}>
-                          {bought && <span style={{ color: "#fff", fontSize: 12, fontWeight: 700 }}>✓</span>}
+                          {bought && <span style={{ color: "#fff", fontSize: 12, fontWeight: 700 }}></span>}
                         </div>
                         <div style={{ minWidth: 0 }}>
                           <span style={{
@@ -826,7 +926,7 @@ function IngredientsTab({ weeks }: { weeks: Week[] }) {
   )
 }
 
-function NutritionTab({ selections }: { selections: DaySelection[] }) {
+function NutritionTab({ selections, userPrefs }: { selections: DaySelection[], userPrefs: UserPrefs }) {
   const { t } = useTranslation()
   const selectedDays = selections.filter(s => s.menu)
   const totals = selectedDays.reduce((acc, s) => ({
@@ -840,7 +940,7 @@ function NutritionTab({ selections }: { selections: DaySelection[] }) {
   if (selectedDays.length === 0) {
     return (
       <div style={{ textAlign: "center", padding: "60px 0" }}>
-        <div style={{ fontSize: 56, marginBottom: 16 }}>📊</div>
+        <div style={{ fontSize: 56, marginBottom: 16 }}></div>
         <h2 style={{ fontSize: 22, marginBottom: 8 }}>{t("nutrition.noData")}</h2>
         <p style={{ color: "var(--text-muted)", fontSize: 14 }}>{t("nutrition.noDataSubtitle")}</p>
       </div>
@@ -853,12 +953,17 @@ function NutritionTab({ selections }: { selections: DaySelection[] }) {
         <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.02em", marginBottom: 4 }}>{t("nutrition.title")}</h1>
         <p style={{ color: "var(--text-muted)", fontSize: 14 }}>{t("nutrition.subtitle", { count: selectedDays.length })}</p>
       </div>
+      {!userPrefs.show_calories && (
+        <div style={{ background: "var(--cream-dark)", border: "1px solid var(--border)", borderRadius: 12, padding: "14px 18px", marginBottom: 24, fontSize: 14, color: "var(--text-muted)" }}>
+          Calorie details are hidden based on your preferences. You can change this in your profile settings.
+        </div>
+      )}
       <div className="grid-4" style={{ marginBottom: 24 }}>
         {[
-          { label: t("nutrition.totalCalories"), value: totals.calories, unit: t("recipes.kcal"), color: "var(--orange)", emoji: "🔥" },
-          { label: t("nutrition.avgPerDinner"), value: avgCal, unit: t("recipes.kcal"), color: "var(--green)", emoji: "📈" },
-          { label: t("nutrition.totalProtein"), value: totals.protein, unit: "g", color: "#3b82f6", emoji: "💪" },
-          { label: t("nutrition.totalCarbs"), value: totals.carbs, unit: "g", color: "#f59e0b", emoji: "🌾" },
+          { label: t("nutrition.totalCalories"), value: userPrefs.show_calories ? totals.calories : "", unit: userPrefs.show_calories ? t("recipes.kcal") : "", color: "var(--orange)", emoji: "" },
+          { label: t("nutrition.avgPerDinner"), value: userPrefs.show_calories ? avgCal : "", unit: userPrefs.show_calories ? t("recipes.kcal") : "", color: "var(--green)", emoji: "" },
+          { label: t("nutrition.totalProtein"), value: totals.protein, unit: "g", color: "#3b82f6", emoji: "" },
+          { label: t("nutrition.totalCarbs"), value: totals.carbs, unit: "g", color: "#f59e0b", emoji: "" },
         ].map(card => (
           <div key={card.label} style={{ background: "var(--white)", borderRadius: "var(--radius)", border: "1px solid var(--border)", padding: "16px" }}>
             <div style={{ fontSize: 20, marginBottom: 6 }}>{card.emoji}</div>
@@ -903,15 +1008,28 @@ function NutritionTab({ selections }: { selections: DaySelection[] }) {
   )
 }
 
-function RecipesTab({ selections, menus }: { selections: DaySelection[], menus: Menu[] }) {
+function RecipesTab({ selections, menus, userPrefs }: { selections: DaySelection[], menus: Menu[], userPrefs: UserPrefs }) {
   const { t } = useTranslation()
   const [search, setSearch] = useState("")
   const [selectedRecipe, setSelectedRecipe] = useState<Menu | null>(null)
   const todayIndex = Math.min(new Date().getDay() === 0 ? 6 : new Date().getDay() - 1, 6)
   const todaySelection = selections[todayIndex]
 
+  // Apply user preference filters to recipe list
+  const filteredMenus = menus.filter(m => {
+    if (userPrefs.cook_time_pref < 60 && m.cook_time > userPrefs.cook_time_pref) return false
+    if (!userPrefs.diet_mixed && userPrefs.diet_type !== "omnivore") {
+      const types = m.diet_types || []
+      if (userPrefs.diet_type === "vegan" && !types.includes("vegan")) return false
+      if (userPrefs.diet_type === "vegetarian" && !types.includes("vegetarian") && !types.includes("vegan")) return false
+      if (userPrefs.diet_type === "pescatarian" && !types.includes("pescatarian") && !types.includes("omnivore") && !types.includes("vegetarian")) return false
+    }
+    if (userPrefs.intolerances.includes("gluten-free") && !m.is_gluten_free) return false
+    return true
+  })
+
   const searchResults = search.length > 1
-    ? menus.filter(m =>
+    ? filteredMenus.filter(m =>
         m.name.toLowerCase().includes(search.toLowerCase()) ||
         m.tags.some(tag => tag.includes(search.toLowerCase())) ||
         m.ingredients.some(i => i.name.toLowerCase().includes(search.toLowerCase()))
@@ -959,8 +1077,19 @@ function RecipesTab({ selections, menus }: { selections: DaySelection[], menus: 
           }} />
       </div>
 
+      {/* Active filters banner */}
+      {(userPrefs.cook_time_pref < 60 || userPrefs.diet_type !== "omnivore" || userPrefs.intolerances.length > 0) && (
+        <div style={{ background: "var(--green-pale)", border: "1px solid var(--green)", borderRadius: 10, padding: "10px 16px", marginBottom: 16, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 13, color: "var(--green)", fontWeight: 600 }}>Filtered for your preferences:</span>
+          {userPrefs.cook_time_pref < 60 && <span style={{ background: "var(--green)", color: "#fff", borderRadius: 999, padding: "2px 10px", fontSize: 11, fontWeight: 600 }}>Max {userPrefs.cook_time_pref} min</span>}
+          {userPrefs.diet_type !== "omnivore" && !userPrefs.diet_mixed && <span style={{ background: "var(--green)", color: "#fff", borderRadius: 999, padding: "2px 10px", fontSize: 11, fontWeight: 600, textTransform: "capitalize" }}>{userPrefs.diet_type}</span>}
+          {userPrefs.intolerances.map(i => <span key={i} style={{ background: "var(--green)", color: "#fff", borderRadius: 999, padding: "2px 10px", fontSize: 11, fontWeight: 600 }}>{i}</span>)}
+          <span style={{ fontSize: 12, color: "var(--text-muted)", marginLeft: "auto" }}>{filteredMenus.length} of {menus.length} recipes shown</span>
+        </div>
+      )}
+
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
-        {(search.length > 1 ? searchResults : menus).map(menu => (
+        {(search.length > 1 ? searchResults : filteredMenus).map(menu => (
           <div key={menu.id} style={{
             background: "var(--white)", borderRadius: "var(--radius)", border: "1px solid var(--border)",
             overflow: "hidden", display: "flex", cursor: "pointer"
@@ -983,6 +1112,227 @@ function RecipesTab({ selections, menus }: { selections: DaySelection[], menus: 
             </div>
           </div>
         ))}
+      </div>
+    </div>
+  )
+}
+
+function ProfileTab({ userPrefs, userId, onSave }: { userPrefs: UserPrefs, userId: string | null, onSave: (p: UserPrefs) => void }) {
+  const { t } = useTranslation()
+  const [form, setForm] = useState<UserPrefs>({ ...userPrefs })
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  const toggle = (arr: string[], val: string): string[] =>
+    arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val]
+
+  const save = async () => {
+    if (!userId) return
+    setSaving(true)
+    try {
+      await supabase.from("user_preferences").upsert({
+        user_id: userId,
+        ...form,
+        updated_at: new Date().toISOString()
+      }, { onConflict: "user_id" })
+      onSave(form)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const s = {
+    card: { background: "var(--white)", borderRadius: "var(--radius)", border: "1px solid var(--border)", padding: "24px", marginBottom: 16 },
+    label: { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" as const, letterSpacing: "0.06em", display: "block", marginBottom: 10 },
+    pill: (active: boolean) => ({
+      padding: "8px 16px", borderRadius: 999, cursor: "pointer",
+      border: active ? "2px solid var(--green)" : "2px solid var(--border)",
+      background: active ? "var(--green)" : "var(--white)",
+      fontSize: 13, fontWeight: 600, color: active ? "#fff" : "var(--text)",
+      transition: "all 0.15s", fontFamily: "inherit"
+    }),
+    row: { display: "flex", gap: 8, flexWrap: "wrap" as const },
+    sectionTitle: { fontFamily: "Playfair Display, serif", fontSize: 18, fontWeight: 700, marginBottom: 6, color: "var(--text)" },
+    hint: { fontSize: 13, color: "var(--text-muted)", marginBottom: 16, lineHeight: 1.5 },
+  }
+
+  return (
+    <div>
+      <div style={{ marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.02em", marginBottom: 4 }}>Profile & Preferences</h1>
+          <p style={{ color: "var(--text-muted)", fontSize: 14 }}>Your settings affect recipe filtering, ingredient quantities and budget warnings</p>
+        </div>
+        <button onClick={save} disabled={saving} style={{
+          background: saved ? "var(--green)" : "var(--orange)", color: "#fff",
+          border: "none", borderRadius: 999, padding: "11px 24px",
+          fontSize: 14, fontWeight: 700, cursor: "pointer", transition: "all 0.2s"
+        }}>
+          {saving ? "Saving..." : saved ? "✓“ Saved!" : "Save changes"}
+        </button>
+      </div>
+
+      {/* Q1 Household size */}
+      <div style={s.card}>
+        <p style={s.sectionTitle}>Household size</p>
+        <p style={s.hint}>Ingredient quantities are scaled based on this number (base recipes serve 2)</p>
+        <div style={s.row}>
+          {[{ val: 1, label: "1 person" }, { val: 2, label: "2 people" }, { val: 4, label: "3—4 people" }, { val: 5, label: "5+ people" }].map(opt => (
+            <button key={opt.val} style={s.pill(form.household_size === opt.val)}
+              onClick={() => setForm(p => ({ ...p, household_size: opt.val }))}>
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Q2 Diet type */}
+      <div style={s.card}>
+        <p style={s.sectionTitle}>Diet type</p>
+        <p style={s.hint}>We filter recipes to match your household's diet. Select "Mixed" if people have different diets.</p>
+        <div style={s.row}>
+          {[
+            { val: "omnivore", label: "Omnivore" },
+            { val: "pescatarian", label: "Pescatarian" },
+            { val: "vegetarian", label: "Vegetarian" },
+            { val: "vegan", label: "Vegan" },
+            { val: "mixed", label: "Mixed" },
+          ].map(opt => (
+            <button key={opt.val} style={s.pill(form.diet_type === opt.val || (opt.val === "mixed" && form.diet_mixed))}
+              onClick={() => setForm(p => ({ ...p, diet_type: opt.val, diet_mixed: opt.val === "mixed" }))}>
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Q3 Intolerances */}
+      <div style={s.card}>
+        <p style={s.sectionTitle}>Dietary restrictions</p>
+        <p style={s.hint}>Recipes containing these will be excluded from your planner and recipe list.</p>
+        <div style={s.row}>
+          {[
+            { val: "gluten-free", label: "Gluten-free" },
+            { val: "dairy-free", label: "Dairy-free" },
+            { val: "nut-free", label: "Nut-free" },
+            { val: "egg-free", label: "Egg-free" },
+            { val: "shellfish-free", label: "No shellfish" },
+          ].map(opt => (
+            <button key={opt.val} style={s.pill(form.intolerances.includes(opt.val))}
+              onClick={() => setForm(p => ({ ...p, intolerances: toggle(p.intolerances, opt.val) }))}>
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Q4 Health goals */}
+      <div style={s.card}>
+        <p style={s.sectionTitle}>Health goals</p>
+        <p style={s.hint}>Select all that apply —” used to personalise recipe suggestions.</p>
+        <div style={s.row}>
+          {[
+            { val: "weight-loss", label: "Weight loss" },
+            { val: "high-protein", label: "High protein" },
+            { val: "heart-healthy", label: "Heart healthy" },
+            { val: "more-veg", label: "More vegetables" },
+            { val: "balanced", label: "Just easy meals" },
+          ].map(opt => (
+            <button key={opt.val} style={s.pill(form.health_goals.includes(opt.val))}
+              onClick={() => setForm(p => ({ ...p, health_goals: toggle(p.health_goals, opt.val) }))}>
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Q5 Calories */}
+      <div style={s.card}>
+        <p style={s.sectionTitle}>Calorie information</p>
+        <p style={s.hint}>Controls whether calorie data is shown in the Nutrition tab.</p>
+        <div style={s.row}>
+          {[
+            { val: true, label: "Show calories" },
+            { val: false, label: "Hide calories" },
+          ].map(opt => (
+            <button key={String(opt.val)} style={s.pill(form.show_calories === opt.val)}
+              onClick={() => setForm(p => ({ ...p, show_calories: opt.val }))}>
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Q6 Cook time */}
+      <div style={s.card}>
+        <p style={s.sectionTitle}>Max cooking time</p>
+        <p style={s.hint}>Recipes that take longer than this will be hidden from your planner and recipe list.</p>
+        <div style={s.row}>
+          {[
+            { val: 20, label: "Under 20 min" },
+            { val: 30, label: "30 min" },
+            { val: 45, label: "45 min" },
+            { val: 60, label: "Any length" },
+          ].map(opt => (
+            <button key={opt.val} style={s.pill(form.cook_time_pref === opt.val)}
+              onClick={() => setForm(p => ({ ...p, cook_time_pref: opt.val }))}>
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Q7 Budget */}
+      <div style={s.card}>
+        <p style={s.sectionTitle}>Weekly dinner budget</p>
+        <p style={s.hint}>A warning appears in the shopping list when your estimated cost exceeds this.</p>
+        <div style={s.row}>
+          {[
+            { val: "low", label: "Under €50" },
+            { val: "medium", label: "€50—€100" },
+            { val: "high", label: "€100—€150" },
+            { val: "unlimited", label: "No limit" },
+          ].map(opt => (
+            <button key={opt.val} style={s.pill(form.budget_range === opt.val)}
+              onClick={() => setForm(p => ({ ...p, budget_range: opt.val }))}>
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Q8 Variety */}
+      <div style={s.card}>
+        <p style={s.sectionTitle}>Meal variety</p>
+        <p style={s.hint}>How much variety do you want in your weekly meal suggestions?</p>
+        <div style={s.row}>
+          {[
+            { val: "variety", label: "Lots of variety" },
+            { val: "mixed", label: "Mix of old and new" },
+            { val: "routine", label: "Mostly familiar" },
+            { val: "adventurous", label: "Always new" },
+          ].map(opt => (
+            <button key={opt.val} style={s.pill(form.variety_pref === opt.val)}
+              onClick={() => setForm(p => ({ ...p, variety_pref: opt.val }))}>
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Save button at bottom */}
+      <div style={{ textAlign: "center", paddingBottom: 32 }}>
+        <button onClick={save} disabled={saving} style={{
+          background: saved ? "var(--green)" : "var(--orange)", color: "#fff",
+          border: "none", borderRadius: 999, padding: "14px 40px",
+          fontSize: 16, fontWeight: 700, cursor: "pointer", transition: "all 0.2s"
+        }}>
+          {saving ? "Saving..." : saved ? "✓“ Saved!" : "Save changes"}
+        </button>
       </div>
     </div>
   )

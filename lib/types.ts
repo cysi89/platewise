@@ -12,6 +12,10 @@
   tags: string[]
   recipe_steps: string[]
   ingredients: Ingredient[]
+  diet_types?: string[]
+  is_gluten_free?: boolean
+  is_vegetarian?: boolean
+  is_vegan?: boolean
 }
 export interface Ingredient {
   name: string

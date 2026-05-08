@@ -25,7 +25,11 @@ export default function LoginPage() {
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) setError(error.message)
-      else window.location.href = "/weekly"
+      else {
+  // Check if user has completed onboarding
+  const { data: prefs } = await supabase.from("user_preferences").select("onboarding_complete").eq("user_id", (await supabase.auth.getUser()).data.user?.id || "").single()
+  window.location.href = prefs?.onboarding_complete ? "/weekly" : "/onboarding"
+}
     }
     setLoading(false)
   }

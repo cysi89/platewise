@@ -59,6 +59,10 @@ export async function fetchAllRecipes(lang: string = "en"): Promise<Menu[]> {
     carbs: r.carbs,
     fat: r.fat,
     tags: r.tags || [],
+    diet_types: r.diet_types || [],
+    is_gluten_free: r.is_gluten_free || false,
+    is_vegetarian: r.is_vegetarian || false,
+    is_vegan: r.is_vegan || false,
     recipe_steps: (steps || [])
       .filter(s => s.recipe_id === r.id)
       .sort((a, b) => a.step_number - b.step_number)

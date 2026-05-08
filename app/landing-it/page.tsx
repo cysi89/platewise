@@ -1,7 +1,7 @@
-﻿"use client"
-import { useState, useEffect } from "react"
+"use client"
+import { useState } from "react"
 
-export default function LandingPage() {
+export default function LandingPageIT() {
   const [email, setEmail] = useState("")
   const [submitted, setSubmitted] = useState(false)
   const [count, setCount] = useState(73)
@@ -40,10 +40,6 @@ export default function LandingPage() {
           0%, 100% { transform: translateY(0px) rotate(-1deg); }
           50% { transform: translateY(-14px) rotate(1deg); }
         }
-        @keyframes floatSlow {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-8px); }
-        }
         @keyframes shimmer {
           0% { background-position: -200% center; }
           100% { background-position: 200% center; }
@@ -55,7 +51,6 @@ export default function LandingPage() {
         .fade-up-d5 { animation: fadeUp 0.7s 0.5s ease forwards; opacity: 0; }
         .float-card { animation: float 6s ease-in-out infinite; }
         .float-card-d { animation: float 6s 1.5s ease-in-out infinite; }
-        .float-lamp { animation: floatSlow 7s 2s ease-in-out infinite; }
         .cta-btn {
           background: var(--orange); color: #fff; border: none;
           border-radius: 999px; padding: 16px 36px; font-size: 16px;
@@ -83,8 +78,8 @@ export default function LandingPage() {
           .dishes-grid { grid-template-columns: 1fr 1fr !important; }
           .stats-row { grid-template-columns: 1fr 1fr !important; }
           .hide-mobile { display: none !important; }
-          .hero-title { font-size: 40px !important; }
-          .section-title { font-size: 32px !important; }
+          .hero-title { font-size: 38px !important; }
+          .section-title { font-size: 30px !important; }
         }
       `}</style>
 
@@ -101,18 +96,18 @@ export default function LandingPage() {
           <span style={{ fontFamily: "Playfair Display, serif", fontSize: 22, fontWeight: 700, color: "var(--green)" }}>Genie</span>
         </div>
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          <a href="#how-it-works" style={{ color: "var(--text-muted)", textDecoration: "none", fontSize: 14, fontWeight: 500 }} className="hide-mobile">How it works</a>
-          <a href="#dishes" style={{ color: "var(--text-muted)", textDecoration: "none", fontSize: 14, fontWeight: 500 }} className="hide-mobile">100 Dishes</a>
+          <a href="#come-funziona" style={{ color: "var(--text-muted)", textDecoration: "none", fontSize: 14, fontWeight: 500 }} className="hide-mobile">Come funziona</a>
+          <a href="#piatti" style={{ color: "var(--text-muted)", textDecoration: "none", fontSize: 14, fontWeight: 500 }} className="hide-mobile">100 Piatti</a>
           <a href="#early-bird" style={{ color: "var(--text-muted)", textDecoration: "none", fontSize: 14, fontWeight: 500 }} className="hide-mobile">Early Bird</a>
-          <a href="/landing-it" style={{ color: "var(--text-muted)", textDecoration: "none", fontSize: 13, fontWeight: 600 }} className="hide-mobile">IT Italiano</a>
+          <a href="/landing" style={{ color: "var(--text-muted)", textDecoration: "none", fontSize: 13, fontWeight: 600 }} className="hide-mobile">EN English</a>
           <a href="/login" style={{
             color: "var(--green)", textDecoration: "none", borderRadius: 999,
             padding: "8px 16px", fontSize: 14, fontWeight: 600, border: "2px solid var(--green)"
-          }}>Log in</a>
+          }}>Accedi</a>
           <a href="/onboarding" style={{
             background: "var(--green)", color: "#fff", textDecoration: "none",
             borderRadius: 999, padding: "8px 20px", fontSize: 14, fontWeight: 600
-          }}>Get Started</a>
+          }}>Inizia ora</a>
         </div>
       </nav>
 
@@ -131,28 +126,28 @@ export default function LandingPage() {
           <div className="hero-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 64, alignItems: "center" }}>
             {/* Left */}
             <div>
-              <div className="fade-up-d1 section-tag">Your Dinner Genie</div>
+              <div className="fade-up-d1 section-tag">Il tuo genio della cena</div>
               <h1 className="fade-up-d2 hero-title" style={{
-                fontFamily: "Playfair Display, serif", fontSize: 56, fontWeight: 800,
+                fontFamily: "Playfair Display, serif", fontSize: 52, fontWeight: 800,
                 lineHeight: 1.1, marginBottom: 24, letterSpacing: "-0.02em"
               }}>
-                Stop stressing about{" "}
-                <span className="shimmer-text">what's for dinner</span>
+                Basta stress per{" "}
+                <span className="shimmer-text">cosa cucinare stasera</span>
               </h1>
               <p className="fade-up-d3" style={{ fontSize: 18, color: "var(--text-muted)", lineHeight: 1.7, marginBottom: 36, maxWidth: 480 }}>
-                Genie plans your family's weekly dinners, builds your shopping list automatically, tracks calories and budget — so you can focus on actually living your life.
+                Genie pianifica le cene settimanali della tua famiglia, crea automaticamente la lista della spesa, tiene traccia delle calorie e del budget — cosi puoi concentrarti su cio che conta davvero.
               </p>
               <div className="fade-up-d4" style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 40 }}>
-                <a href="#early-bird" className="cta-btn">Claim your free year</a>
+                <a href="#early-bird" className="cta-btn">Prenota il tuo anno gratuito</a>
                 <a href="/weekly" style={{
                   display: "inline-flex", alignItems: "center",
                   color: "var(--green)", textDecoration: "none", fontWeight: 600,
                   fontSize: 16, padding: "16px 24px", borderRadius: 999,
                   border: "2px solid var(--green)", transition: "all 0.2s"
-                }}>Log in</a>
+                }}>Accedi</a>
               </div>
               <div className="fade-up-d5" style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
-                {[{ value: "100+", label: "Recipes" }, { value: "5 min", label: "Weekly setup" }, { value: "Free", label: "For early birds" }].map(stat => (
+                {[{ value: "100+", label: "Ricette" }, { value: "5 min", label: "Setup settimanale" }, { value: "Gratis", label: "Per i primi iscritti" }].map(stat => (
                   <div key={stat.label}>
                     <div style={{ fontSize: 24, fontWeight: 800, color: "var(--green)", fontFamily: "Playfair Display, serif" }}>{stat.value}</div>
                     <div style={{ fontSize: 13, color: "var(--text-muted)", fontWeight: 500 }}>{stat.label}</div>
@@ -161,11 +156,8 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Right — app mockup + lamp */}
-            <div className="fade-up-d3 hide-mobile" style={{ position: "relative", height: 560 }}>
-
-
-              {/* App mockup card */}
+            {/* Right — app mockup */}
+            <div className="fade-up-d3 hide-mobile" style={{ position: "relative", height: 520 }}>
               <div className="float-card" style={{
                 position: "absolute", top: 40, left: "5%", right: "5%",
                 background: "var(--white)", borderRadius: 24,
@@ -177,17 +169,17 @@ export default function LandingPage() {
                     onError={e => { (e.target as HTMLImageElement).style.display = "none" }} />
                   <span style={{ color: "#fff", fontWeight: 700, fontFamily: "Playfair Display, serif", fontSize: 16 }}>Genie</span>
                   <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
-                    {["This Week", "Shop", "Nutrition"].map(label => (
+                    {["Settimana", "Spesa", "Nutriz."].map(label => (
                       <span key={label} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 6, padding: "4px 8px", fontSize: 11, color: "#fff" }}>{label}</span>
                     ))}
                   </div>
                 </div>
                 <div style={{ padding: "20px" }}>
-                  <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12 }}>This week</p>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12 }}>Questa settimana</p>
                   {[
-                    { day: "Mon", dish: "Lemon Herb Chicken", time: "38 min", cal: "520 kcal", img: "/images/dish-01-lemon-herb-chicken.png" },
-                    { day: "Tue", dish: "Miso Glazed Salmon", time: "20 min", cal: "480 kcal", img: "/images/dish-02-miso-salmon.png" },
-                    { day: "Wed", dish: "Buddha Bowl", time: "30 min", cal: "440 kcal", img: "/images/dish-12-buddha-bowl.png" },
+                    { day: "Lun", dish: "Pollo alle Erbe e Limone", time: "38 min", cal: "520 kcal", img: "/images/dish-01-lemon-herb-chicken.png" },
+                    { day: "Mar", dish: "Salmone Glassato al Miso", time: "20 min", cal: "480 kcal", img: "/images/dish-02-miso-salmon.png" },
+                    { day: "Mer", dish: "Buddha Bowl di Verdure", time: "30 min", cal: "440 kcal", img: "/images/dish-12-buddha-bowl.png" },
                   ].map(item => (
                     <div key={item.day} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: "1px solid var(--border)" }}>
                       <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", width: 28, textTransform: "uppercase" }}>{item.day}</span>
@@ -201,14 +193,13 @@ export default function LandingPage() {
                     </div>
                   ))}
                   <div style={{ marginTop: 14, display: "flex", justifyContent: "flex-end" }}>
-                    <span style={{ background: "var(--green)", color: "#fff", borderRadius: 999, padding: "6px 16px", fontSize: 12, fontWeight: 600 }}>3/7 planned</span>
+                    <span style={{ background: "var(--green)", color: "#fff", borderRadius: 999, padding: "6px 16px", fontSize: 12, fontWeight: 600 }}>3/7 pianificati</span>
                   </div>
                 </div>
               </div>
 
-              {/* Shopping badge */}
               <div className="float-card-d" style={{
-                position: "absolute", bottom: 80, right: "-5%",
+                position: "absolute", bottom: 20, right: "-5%",
                 background: "var(--white)", borderRadius: 16,
                 boxShadow: "0 12px 40px rgba(0,0,0,0.12)",
                 padding: "14px 18px", border: "1px solid var(--border)",
@@ -216,8 +207,8 @@ export default function LandingPage() {
               }}>
                 <span style={{ fontSize: 28 }}>🛒</span>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 700 }}>Shopping list ready</div>
-                  <div style={{ fontSize: 11, color: "var(--text-muted)" }}>21 items · ~€48 est.</div>
+                  <div style={{ fontSize: 13, fontWeight: 700 }}>Lista della spesa pronta</div>
+                  <div style={{ fontSize: 11, color: "var(--text-muted)" }}>21 ingredienti · ~€48 stimati</div>
                 </div>
               </div>
             </div>
@@ -225,26 +216,26 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* PROBLEM */}
+      {/* PROBLEMA */}
       <section style={{ padding: "100px 24px", background: "var(--white)" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
           <div style={{ textAlign: "center", maxWidth: 720, margin: "0 auto 64px" }}>
-            <div className="section-tag">The Problem</div>
+            <div className="section-tag">Il Problema</div>
             <h2 className="section-title" style={{ fontFamily: "Playfair Display, serif", fontSize: 42, fontWeight: 700, lineHeight: 1.2, marginBottom: 20 }}>
-              Sound familiar?
+              Ti suona familiare?
             </h2>
             <p style={{ fontSize: 17, color: "var(--text-muted)", lineHeight: 1.7 }}>
-              It's 6pm. You're exhausted. The family is hungry. And nobody can agree on what to eat.
+              Sono le 18:30. Sei esausto. La famiglia ha fame. E nessuno riesce a decidere cosa mangiare.
             </p>
           </div>
           <div className="features-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24 }}>
             {[
-              { emoji: "😩", title: "Decision fatigue every single day", desc: "35,000 decisions a day. Don't waste mental energy on 'what's for dinner' — that question should answer itself.", color: "#fff3f0", border: "#ffd5c8" },
-              { emoji: "🛒", title: "Last-minute supermarket chaos", desc: "Mid-recipe discoveries of missing ingredients. Duplicate buys. Food waste because you bought without a plan.", color: "#fff8f0", border: "#ffe5c2" },
-              { emoji: "⚖️", title: "No idea what you're actually eating", desc: "Nobody's tracking calories or whether the family is eating a balanced diet — until it's too late.", color: "#f0f5ff", border: "#c2d4ff" },
-              { emoji: "👨‍👩‍👧", title: "Impossible to coordinate as a family", desc: "Everyone has different tastes, schedules, dietary needs. Getting four people to agree on seven dinners is a negotiation nobody wants.", color: "#f0fff4", border: "#c2f0d4" },
-              { emoji: "💸", title: "Food spending out of control", desc: "Unplanned meals mean expensive last-minute shops, food delivery apps, and restaurants on tired weeknights.", color: "#fdfff0", border: "#e8f5c2" },
-              { emoji: "🔁", title: "The same 5 dishes on repeat", desc: "When there's no plan, you default. Pasta again. Pizza again. The same uninspiring rotation.", color: "#fff0fc", border: "#f5c2ee" },
+              { emoji: "😩", title: "L'eterna domanda: cosa cucino stasera?", desc: "Una persona media prende 35.000 decisioni al giorno. Non sprecare energia mentale sul menu serale.", color: "#fff3f0", border: "#ffd5c8" },
+              { emoji: "🛒", title: "Caos al supermercato all'ultimo minuto", desc: "Ingredienti mancanti a meta ricetta. Acquisti doppi. Sprechi alimentari perche si compra senza un piano.", color: "#fff8f0", border: "#ffe5c2" },
+              { emoji: "⚖️", title: "Non sai cosa stai mangiando davvero", desc: "Il take-away si insinua nella routine. Nessuno tiene traccia delle calorie o dell'equilibrio nutrizionale.", color: "#f0f5ff", border: "#c2d4ff" },
+              { emoji: "👨‍👩‍👧", title: "Impossibile coordinarsi in famiglia", desc: "Gusti diversi, orari diversi, esigenze diverse. Mettere d'accordo quattro persone su sette cene e una trattativa che nessuno vuole fare.", color: "#f0fff4", border: "#c2f0d4" },
+              { emoji: "💸", title: "Spese alimentari fuori controllo", desc: "Senza pianificazione si finisce per fare spese d'emergenza costose, ordinare a domicilio, o mangiare fuori.", color: "#fdfff0", border: "#e8f5c2" },
+              { emoji: "🔁", title: "Gli stessi 5 piatti che si ripetono", desc: "Senza un piano, si va sul sicuro. Pasta ancora. Pizza ancora. La stessa rotazione noiosa.", color: "#fff0fc", border: "#f5c2ee" },
             ].map(card => (
               <div key={card.title} className="card-hover" style={{ background: card.color, borderRadius: 20, border: `1px solid ${card.border}`, padding: "28px 28px 24px" }}>
                 <div style={{ fontSize: 36, marginBottom: 14 }}>{card.emoji}</div>
@@ -256,28 +247,28 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* SOLUTION */}
-      <section id="how-it-works" style={{ padding: "100px 24px", background: "linear-gradient(170deg, var(--green-pale) 0%, #faf8f3 100%)" }}>
+      {/* SOLUZIONE */}
+      <section id="come-funziona" style={{ padding: "100px 24px", background: "linear-gradient(170deg, var(--green-pale) 0%, #faf8f3 100%)" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
           <div style={{ textAlign: "center", maxWidth: 720, margin: "0 auto 72px" }}>
-            <div className="section-tag">The Solution</div>
+            <div className="section-tag">La Soluzione</div>
             <h2 className="section-title" style={{ fontFamily: "Playfair Display, serif", fontSize: 42, fontWeight: 700, lineHeight: 1.2, marginBottom: 20 }}>
-              Meet Genie — your family's dinner planner
+              Ecco Genie — il pianificatore di cene per la tua famiglia
             </h2>
             <p style={{ fontSize: 17, color: "var(--text-muted)", lineHeight: 1.7 }}>
-              One app. Shared with your whole family. Plans your week, builds your shopping list, tracks nutrition and budget — in under 5 minutes.
+              Un'unica app. Condivisa con tutta la famiglia. Pianifica la settimana, crea la lista della spesa, tiene traccia di nutrizione e budget — in meno di 5 minuti.
             </p>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 32, marginBottom: 72 }}>
             {[
-              { step: "01", icon: "🎯", title: "Tell us your preferences", desc: "Diet type, cooking time, allergies, household size. Takes 2 minutes once." },
-              { step: "02", icon: "📅", title: "Pick your week's dinners", desc: "Browse 100+ recipes filtered for your family. Select 7, skip some, confirm." },
-              { step: "03", icon: "🛒", title: "Get your shopping list", desc: "Automatic ingredient list, quantities summed, estimated cost included." },
-              { step: "04", icon: "🍽️", title: "Cook with confidence", desc: "Full recipes with step-by-step instructions, timings, and nutritional info." },
-            ].map((step, i) => (
+              { step: "01", icon: "🎯", title: "Dici le tue preferenze", desc: "Tipo di dieta, tempo di cottura, allergie, numero di persone. Ci vuole 2 minuti, una volta sola." },
+              { step: "02", icon: "📅", title: "Scegli le cene della settimana", desc: "Sfoglia oltre 100 ricette filtrate per la tua famiglia. Seleziona 7, salta qualche giorno, conferma." },
+              { step: "03", icon: "🛒", title: "Ricevi la lista della spesa", desc: "Lista ingredienti automatica, quantita sommate per tutta la settimana, costo stimato incluso." },
+              { step: "04", icon: "🍽️", title: "Cucina senza pensieri", desc: "Ricette complete con istruzioni passo-passo, tempi di cottura e valori nutrizionali." },
+            ].map((step) => (
               <div key={step.step} style={{ background: "var(--white)", borderRadius: 20, border: "1px solid var(--border)", padding: "32px 28px", boxShadow: "0 4px 20px rgba(0,0,0,0.05)" }}>
                 <div style={{ width: 48, height: 48, borderRadius: 12, background: "var(--green)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, marginBottom: 16 }}>{step.icon}</div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--orange)", letterSpacing: "0.1em", marginBottom: 8 }}>STEP {step.step}</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--orange)", letterSpacing: "0.1em", marginBottom: 8 }}>PASSO {step.step}</div>
                 <h3 style={{ fontFamily: "Playfair Display, serif", fontSize: 20, fontWeight: 700, marginBottom: 10 }}>{step.title}</h3>
                 <p style={{ fontSize: 14, color: "var(--text-muted)", lineHeight: 1.7 }}>{step.desc}</p>
               </div>
@@ -285,15 +276,15 @@ export default function LandingPage() {
           </div>
           <div style={{ background: "var(--green)", borderRadius: 28, padding: "48px 40px", color: "#fff" }}>
             <div style={{ textAlign: "center", marginBottom: 40 }}>
-              <h3 style={{ fontFamily: "Playfair Display, serif", fontSize: 30, fontWeight: 700, marginBottom: 12 }}>Everything your family needs in one place</h3>
-              <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 16 }}>Shared across all family members, accessible on any device</p>
+              <h3 style={{ fontFamily: "Playfair Display, serif", fontSize: 30, fontWeight: 700, marginBottom: 12 }}>Tutto cio di cui la tua famiglia ha bisogno, in un'unica app</h3>
+              <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 16 }}>Condivisa tra tutti i membri della famiglia, accessibile da qualsiasi dispositivo</p>
             </div>
             <div className="stats-row" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 24 }}>
               {[
-                { icon: "📊", title: "Nutrition tracking", desc: "Calories, protein, carbs and fat per dinner, per week" },
-                { icon: "💰", title: "Budget estimates", desc: "Rough cost per shopping list so you stay on budget" },
-                { icon: "🌍", title: "EN and IT support", desc: "Full Italian and English interface including recipes" },
-                { icon: "📱", title: "Mobile ready", desc: "Works beautifully on phone, tablet and desktop" },
+                { icon: "📊", title: "Monitoraggio nutrizionale", desc: "Calorie, proteine, carboidrati e grassi per cena e per settimana" },
+                { icon: "💰", title: "Stima del budget", desc: "Costo approssimativo della lista della spesa per restare nei limiti" },
+                { icon: "🌍", title: "Italiano e inglese", desc: "Interfaccia e ricette disponibili in italiano e inglese" },
+                { icon: "📱", title: "Ottimizzato per mobile", desc: "Funziona perfettamente su smartphone, tablet e desktop" },
               ].map(b => (
                 <div key={b.title} style={{ textAlign: "center" }}>
                   <div style={{ fontSize: 32, marginBottom: 10 }}>{b.icon}</div>
@@ -306,25 +297,25 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* DISHES */}
-      <section id="dishes" style={{ padding: "100px 24px", background: "var(--white)" }}>
+      {/* PIATTI */}
+      <section id="piatti" style={{ padding: "100px 24px", background: "var(--white)" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
           <div style={{ textAlign: "center", maxWidth: 720, margin: "0 auto 56px" }}>
-            <div className="section-tag">The Menu</div>
+            <div className="section-tag">Il Menu</div>
             <h2 className="section-title" style={{ fontFamily: "Playfair Display, serif", fontSize: 42, fontWeight: 700, lineHeight: 1.2, marginBottom: 20 }}>
-              100 dishes. All under 40 minutes.
+              100 piatti. Tutti pronti in 40 minuti.
             </h2>
             <p style={{ fontSize: 17, color: "var(--text-muted)", lineHeight: 1.7 }}>
-              From Italian classics to international favourites — every dish is nutritionally balanced, uses supermarket ingredients, and ready in under 40 minutes.
+              Dai classici italiani ai piatti internazionali — ogni ricetta e bilanciata, usa ingredienti di supermercato ed e pronta in meno di 40 minuti.
             </p>
           </div>
           <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap", marginBottom: 48 }}>
             {[
-              { label: "Omnivore", active: true },
-              { label: "Vegetarian", active: false },
-              { label: "Vegan", active: false },
-              { label: "Pescatarian", active: false },
-              { label: "Gluten-free", active: false },
+              { label: "Onnivori", active: true },
+              { label: "Vegetariani", active: false },
+              { label: "Vegani", active: false },
+              { label: "Pescatariani", active: false },
+              { label: "Senza glutine", active: false },
             ].map(tag => (
               <span key={tag.label} style={{
                 padding: "8px 20px", borderRadius: 999,
@@ -337,14 +328,14 @@ export default function LandingPage() {
           </div>
           <div className="dishes-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 40 }}>
             {[
-              { name: "Lemon Herb Chicken", time: "38 min", cal: "520 kcal", img: "/images/dish-01-lemon-herb-chicken.png", tag: "chicken" },
-              { name: "Miso Glazed Salmon", time: "20 min", cal: "480 kcal", img: "/images/dish-02-miso-salmon.png", tag: "fish" },
-              { name: "Buddha Bowl", time: "30 min", cal: "440 kcal", img: "/images/dish-12-buddha-bowl.png", tag: "vegan" },
-              { name: "Mushroom Risotto", time: "38 min", cal: "510 kcal", img: "/images/dish-13-mushroom-risotto.png", tag: "vegetarian" },
-              { name: "Thai Beef Stir-fry", time: "20 min", cal: "490 kcal", img: "/images/dish-03-thai-beef-basil.png", tag: "quick" },
-              { name: "Chickpea Curry", time: "28 min", cal: "420 kcal", img: "/images/dish-19-chickpea-tomato-curry.png", tag: "vegan" },
-              { name: "Halloumi Salad", time: "15 min", cal: "420 kcal", img: "/images/dish-18-greek-halloumi-salad.png", tag: "vegetarian" },
-              { name: "Prawn Paella", time: "38 min", cal: "550 kcal", img: "/images/dish-05-prawn-chorizo-paella.png", tag: "seafood" },
+              { name: "Pollo alle Erbe e Limone", time: "38 min", cal: "520 kcal", img: "/images/dish-01-lemon-herb-chicken.png", tag: "pollo" },
+              { name: "Salmone Glassato al Miso", time: "20 min", cal: "480 kcal", img: "/images/dish-02-miso-salmon.png", tag: "pesce" },
+              { name: "Buddha Bowl di Verdure", time: "30 min", cal: "440 kcal", img: "/images/dish-12-buddha-bowl.png", tag: "vegano" },
+              { name: "Risotto ai Funghi", time: "38 min", cal: "510 kcal", img: "/images/dish-13-mushroom-risotto.png", tag: "vegetariano" },
+              { name: "Saltato di Manzo Tailandese", time: "20 min", cal: "490 kcal", img: "/images/dish-03-thai-beef-basil.png", tag: "veloce" },
+              { name: "Curry di Ceci e Pomodoro", time: "28 min", cal: "420 kcal", img: "/images/dish-19-chickpea-tomato-curry.png", tag: "vegano" },
+              { name: "Insalata con Halloumi", time: "15 min", cal: "420 kcal", img: "/images/dish-18-greek-halloumi-salad.png", tag: "vegetariano" },
+              { name: "Paella di Gamberi", time: "38 min", cal: "550 kcal", img: "/images/dish-05-prawn-chorizo-paella.png", tag: "pesce" },
             ].map(dish => (
               <div key={dish.name} className="card-hover" style={{ borderRadius: 16, overflow: "hidden", border: "1px solid var(--border)", background: "var(--white)", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
                 <div style={{ position: "relative", height: 140 }}>
@@ -364,9 +355,9 @@ export default function LandingPage() {
           </div>
           <div style={{ textAlign: "center" }}>
             <p style={{ color: "var(--text-muted)", fontSize: 15, marginBottom: 20 }}>
-              Showing 8 of <strong>24 dishes</strong> — growing to <strong>100+</strong> by launch
+              Mostrando 8 di <strong>24 piatti</strong> — in crescita fino a <strong>100+</strong> al lancio
             </p>
-            <a href="/onboarding" className="cta-btn">Get started free</a>
+            <a href="/onboarding" className="cta-btn">Inizia gratis</a>
           </div>
         </div>
       </section>
@@ -380,52 +371,52 @@ export default function LandingPage() {
         <div style={{ position: "absolute", top: "-20%", right: "-10%", width: 600, height: 600, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,255,255,0.04) 0%, transparent 70%)", pointerEvents: "none" }} />
         <div style={{ maxWidth: 800, margin: "0 auto", textAlign: "center", position: "relative" }}>
           <div style={{ display: "inline-block", background: "rgba(232,108,47,0.2)", border: "1px solid rgba(232,108,47,0.5)", borderRadius: 999, padding: "6px 20px", fontSize: 12, fontWeight: 700, color: "#ffb088", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 24 }}>
-            Early Bird Offer
+            Offerta Early Bird
           </div>
-          <h2 style={{ fontFamily: "Playfair Display, serif", fontSize: 48, fontWeight: 800, color: "#fff", lineHeight: 1.15, marginBottom: 20, letterSpacing: "-0.02em" }}>
-            First 100 families get<br />
-            <span style={{ color: "#ffb088" }}>1 full year for free</span>
+          <h2 style={{ fontFamily: "Playfair Display, serif", fontSize: 48, fontWeight: 800, color: "#fff", lineHeight: 1.15, marginBottom: 20 }}>
+            Le prime 100 famiglie ottengono<br />
+            <span style={{ color: "#ffb088" }}>1 anno intero gratis</span>
           </h2>
           <p style={{ fontSize: 18, color: "rgba(255,255,255,0.8)", lineHeight: 1.7, marginBottom: 48 }}>
-            Genie is launching soon. We're giving the first 100 families a full year of premium access — completely free. No credit card. No catch.
+            Genie sta per lanciare. Stiamo offrendo alle prime 100 famiglie un anno completo di accesso premium — completamente gratuito. Nessuna carta di credito. Nessuna sorpresa.
           </p>
           <div style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 20, padding: "24px 32px", marginBottom: 40, display: "inline-flex", alignItems: "center", gap: 20, flexWrap: "wrap", justifyContent: "center" }}>
             <div>
               <div style={{ fontSize: 56, fontWeight: 800, color: "#ffb088", fontFamily: "Playfair Display, serif", lineHeight: 1 }}>{count}</div>
-              <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, marginTop: 4 }}>spots remaining</div>
+              <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, marginTop: 4 }}>posti rimasti</div>
             </div>
             <div style={{ width: 1, height: 60, background: "rgba(255,255,255,0.2)" }} />
             <div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: "#fff" }}>out of 100</div>
-              <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, marginTop: 4 }}>early bird spots</div>
+              <div style={{ fontSize: 20, fontWeight: 700, color: "#fff" }}>su 100</div>
+              <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, marginTop: 4 }}>posti early bird</div>
             </div>
             <div style={{ width: 1, height: 60, background: "rgba(255,255,255,0.2)" }} />
             <div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: "#fff" }}>1 year</div>
-              <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, marginTop: 4 }}>completely free</div>
+              <div style={{ fontSize: 20, fontWeight: 700, color: "#fff" }}>1 anno</div>
+              <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, marginTop: 4 }}>completamente gratuito</div>
             </div>
           </div>
           {!submitted ? (
             <form onSubmit={handleSubmit} style={{ maxWidth: 480, margin: "0 auto" }}>
               <div style={{ display: "flex", background: "var(--white)", borderRadius: 999, padding: 6, boxShadow: "0 8px 40px rgba(0,0,0,0.2)" }}>
                 <input suppressHydrationWarning type="email" value={email} onChange={e => setEmail(e.target.value)}
-                  placeholder="Enter your email address" required
+                  placeholder="Inserisci la tua email" required
                   style={{ flex: 1, border: "none", outline: "none", padding: "12px 20px", fontSize: 15, borderRadius: 999, fontFamily: "DM Sans, sans-serif", color: "var(--text)", background: "transparent" }} />
-                <button type="submit" className="cta-btn" style={{ margin: 0, padding: "12px 24px", fontSize: 14 }}>Claim my spot</button>
+                <button type="submit" className="cta-btn" style={{ margin: 0, padding: "12px 24px", fontSize: 14 }}>Prenota il mio posto</button>
               </div>
-              <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, marginTop: 12 }}>No spam. No credit card. Unsubscribe any time.</p>
+              <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, marginTop: 12 }}>Nessuno spam. Nessuna carta di credito. Cancellazione in qualsiasi momento.</p>
             </form>
           ) : (
             <div style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 20, padding: "32px 40px", maxWidth: 480, margin: "0 auto" }}>
               <div style={{ fontSize: 48, marginBottom: 12 }}>🎉</div>
-              <h3 style={{ color: "#fff", fontFamily: "Playfair Display, serif", fontSize: 24, fontWeight: 700, marginBottom: 8 }}>You're on the list!</h3>
+              <h3 style={{ color: "#fff", fontFamily: "Playfair Display, serif", fontSize: 24, fontWeight: 700, marginBottom: 8 }}>Sei nella lista!</h3>
               <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 15, lineHeight: 1.6 }}>
-                We'll email you at <strong style={{ color: "#fff" }}>{email}</strong> when Genie launches.
+                Ti contatteremo a <strong style={{ color: "#fff" }}>{email}</strong> quando Genie sara disponibile.
               </p>
             </div>
           )}
           <div style={{ display: "flex", gap: 24, justifyContent: "center", flexWrap: "wrap", marginTop: 48 }}>
-            {["100+ recipes", "Weekly planner", "Shopping lists", "Nutrition tracking", "Budget estimates", "EN and IT"].map(item => (
+            {["100+ ricette", "Pianificatore settimanale", "Lista della spesa", "Monitoraggio nutrizionale", "Stima del budget", "Italiano e inglese"].map(item => (
               <span key={item} style={{ color: "rgba(255,255,255,0.8)", fontSize: 14, fontWeight: 500 }}>✓ {item}</span>
             ))}
           </div>
@@ -440,11 +431,11 @@ export default function LandingPage() {
               onError={e => { (e.target as HTMLImageElement).style.display = "none" }} />
             <span style={{ fontFamily: "Playfair Display, serif", color: "rgba(255,255,255,0.7)", fontSize: 18, fontWeight: 700 }}>Genie</span>
           </div>
-          <p style={{ fontSize: 13 }}>© 2025 Genie. Your smart dinner planning assistant.</p>
+          <p style={{ fontSize: 13 }}>© 2025 Genie. Il tuo assistente intelligente per le cene.</p>
           <div style={{ display: "flex", gap: 20 }}>
-            <a href="/login" style={{ color: "rgba(255,255,255,0.5)", textDecoration: "none", fontSize: 13 }}>Log in</a>
-            <a href="/landing-it" style={{ color: "rgba(255,255,255,0.5)", textDecoration: "none", fontSize: 13 }}>Italiano</a>
-            <a href="mailto:hello@thegenie.life" style={{ color: "rgba(255,255,255,0.5)", textDecoration: "none", fontSize: 13 }}>Contact</a>
+            <a href="/login" style={{ color: "rgba(255,255,255,0.5)", textDecoration: "none", fontSize: 13 }}>Accedi</a>
+            <a href="/landing" style={{ color: "rgba(255,255,255,0.5)", textDecoration: "none", fontSize: 13 }}>EN English</a>
+            <a href="mailto:hello@thegenie.life" style={{ color: "rgba(255,255,255,0.5)", textDecoration: "none", fontSize: 13 }}>Contatti</a>
           </div>
         </div>
       </footer>
