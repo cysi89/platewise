@@ -157,16 +157,7 @@ export default function LandingPage() {
             {/* Right — app mockup + lamp */}
             <div className="fade-up-d3 hide-mobile" style={{ position: "relative", height: 560 }}>
 
-              {/* Lamp image — below the card */}
-              <img src="/images/genie-hero.png" alt=""
-                className="float-lamp"
-                style={{
-                  position: "absolute", bottom: -40, left: -60,
-                  width: 500, objectFit: "contain",
-                  opacity: 0.95, zIndex: 0
-                }}
-                onError={e => { (e.target as HTMLImageElement).style.display = "none" }}
-              />
+
 
               {/* App mockup card */}
               <div className="float-card" style={{
