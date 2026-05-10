@@ -2,16 +2,9 @@
 import { useState, useEffect } from "react"
 
 export default function LandingPage() {
-  const [email, setEmail] = useState("")
-  const [submitted, setSubmitted] = useState(false)
   const [count, setCount] = useState(73)
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!email) return
-    setSubmitted(true)
-    setCount(prev => prev - 1)
-  }
+
 
   return (
     <div style={{ fontFamily: "'DM Sans', sans-serif", background: "#faf8f3", color: "#1a1a1a", overflowX: "hidden" }}>
@@ -164,6 +157,16 @@ export default function LandingPage() {
             {/* Right — app mockup + lamp */}
             <div className="fade-up-d3 hide-mobile" style={{ position: "relative", height: 560 }}>
 
+              {/* Lamp image — below the card */}
+              <img src="/images/genie-hero.png" alt=""
+                className="float-lamp"
+                style={{
+                  position: "absolute", bottom: -40, left: -60,
+                  width: 500, objectFit: "contain",
+                  opacity: 0.95, zIndex: 0
+                }}
+                onError={e => { (e.target as HTMLImageElement).style.display = "none" }}
+              />
 
               {/* App mockup card */}
               <div className="float-card" style={{
@@ -405,25 +408,27 @@ export default function LandingPage() {
               <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, marginTop: 4 }}>completely free</div>
             </div>
           </div>
-          {!submitted ? (
-            <form onSubmit={handleSubmit} style={{ maxWidth: 480, margin: "0 auto" }}>
-              <div style={{ display: "flex", background: "var(--white)", borderRadius: 999, padding: 6, boxShadow: "0 8px 40px rgba(0,0,0,0.2)" }}>
-                <input suppressHydrationWarning type="email" value={email} onChange={e => setEmail(e.target.value)}
-                  placeholder="Enter your email address" required
-                  style={{ flex: 1, border: "none", outline: "none", padding: "12px 20px", fontSize: 15, borderRadius: 999, fontFamily: "DM Sans, sans-serif", color: "var(--text)", background: "transparent" }} />
-                <button type="submit" className="cta-btn" style={{ margin: 0, padding: "12px 24px", fontSize: 14 }}>Claim my spot</button>
-              </div>
-              <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, marginTop: 12 }}>No spam. No credit card. Unsubscribe any time.</p>
-            </form>
-          ) : (
-            <div style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 20, padding: "32px 40px", maxWidth: 480, margin: "0 auto" }}>
-              <div style={{ fontSize: 48, marginBottom: 12 }}>🎉</div>
-              <h3 style={{ color: "#fff", fontFamily: "Playfair Display, serif", fontSize: 24, fontWeight: 700, marginBottom: 8 }}>You're on the list!</h3>
-              <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 15, lineHeight: 1.6 }}>
-                We'll email you at <strong style={{ color: "#fff" }}>{email}</strong> when Genie launches.
-              </p>
-            </div>
-          )}
+              <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
+            <a href="/onboarding" style={{
+              background: "var(--orange)", color: "#fff", textDecoration: "none",
+              borderRadius: 999, padding: "16px 40px", fontSize: 17, fontWeight: 700,
+              boxShadow: "0 4px 24px rgba(232,108,47,0.4)", transition: "all 0.2s",
+              display: "inline-flex", alignItems: "center", gap: 8
+            }}>
+              Start free — 1 year on us
+            </a>
+            <a href="/login" style={{
+              background: "rgba(255,255,255,0.15)", color: "#fff", textDecoration: "none",
+              borderRadius: 999, padding: "16px 32px", fontSize: 17, fontWeight: 600,
+              border: "2px solid rgba(255,255,255,0.4)", transition: "all 0.2s",
+              display: "inline-flex", alignItems: "center", gap: 8
+            }}>
+              Already have an account? Log in
+            </a>
+          </div>
+          <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, marginTop: 16 }}>
+            No credit card. Cancel any time.
+          </p>
           <div style={{ display: "flex", gap: 24, justifyContent: "center", flexWrap: "wrap", marginTop: 48 }}>
             {["100+ recipes", "Weekly planner", "Shopping lists", "Nutrition tracking", "Budget estimates", "EN and IT"].map(item => (
               <span key={item} style={{ color: "rgba(255,255,255,0.8)", fontSize: 14, fontWeight: 500 }}>✓ {item}</span>

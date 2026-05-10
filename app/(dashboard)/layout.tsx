@@ -274,12 +274,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         boxShadow: "0 2px 12px rgba(0,0,0,0.15)",
         paddingTop: "env(safe-area-inset-top)"
       }}>
-        {/* Inner constrained row —” aligns with content below */}
+        {/* Inner constrained row — aligns with content below */}
         <div style={{
           maxWidth: 1200, margin: "0 auto", padding: "0 16px",
           height: 70, display: "flex", alignItems: "center", justifyContent: "space-between"
         }}>
-          {/* Logo block —” full height bar */}
+          {/* Logo block — full height bar */}
           <div style={{ display: "flex", alignItems: "center", gap: 0, height: "100%", marginLeft: -16 }}>
             <div style={{
               height: "100%", padding: "0 16px",
@@ -555,16 +555,16 @@ function WeekEditor({ week, menus, userPrefs, onUpdate, onConfirm, isComplete, i
 
   // Filter recipes based on user preferences
   const allowedMenus = menus.filter(m => {
-    // Cook time filter —” only filter if user explicitly set a preference under 60
+    // Cook time filter — only filter if user explicitly set a preference under 60
     if (userPrefs.cook_time_pref < 60 && m.cook_time > userPrefs.cook_time_pref) return false
-    // Diet type filter —” only filter if not omnivore and not mixed
+    // Diet type filter — only filter if not omnivore and not mixed
     if (!userPrefs.diet_mixed && userPrefs.diet_type !== "omnivore") {
       const types = m.diet_types || []
       if (userPrefs.diet_type === "vegan" && !types.includes("vegan")) return false
       if (userPrefs.diet_type === "vegetarian" && !types.includes("vegetarian") && !types.includes("vegan")) return false
       if (userPrefs.diet_type === "pescatarian" && !types.includes("pescatarian") && !types.includes("omnivore") && !types.includes("vegetarian")) return false
     }
-    // Intolerance filter —” only if user has set intolerances
+    // Intolerance filter — only if user has set intolerances
     if (userPrefs.intolerances.includes("gluten-free") && !m.is_gluten_free) return false
     return true
   })
@@ -665,7 +665,7 @@ function WeekEditor({ week, menus, userPrefs, onUpdate, onConfirm, isComplete, i
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 14, borderTop: "1px solid var(--border)", gap: 12, flexWrap: "wrap" }}>
         <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
-          {week.selections.filter(s => s.menu || s.skipped).length}/7 {t("weekly.daysPlanned")}{isComplete && ` —” ${t("weekly.ready")}`}
+          {week.selections.filter(s => s.menu || s.skipped).length}/7 {t("weekly.daysPlanned")}{isComplete && ` — ${t("weekly.ready")}`}
         </p>
         <button onClick={onConfirm} disabled={!isComplete} style={{
           background: isComplete ? (isEditing ? "var(--orange)" : "var(--green)") : "var(--border)",
@@ -844,7 +844,7 @@ function IngredientsTab({ weeks, userPrefs }: { weeks: Week[], userPrefs: UserPr
                   Estimated cost exceeds your budget
                 </p>
                 <p style={{ fontSize: 12, color: "#dc2626" }}>
-                  ~€{estimatedCost.toFixed(0)} estimated vs €{weeklyBudgetLimit} weekly budget —” consider swapping some dishes for simpler options
+                  ~€{estimatedCost.toFixed(0)} estimated vs €{weeklyBudgetLimit} weekly budget — consider swapping some dishes for simpler options
                 </p>
                 <div style={{ marginTop: 6, background: "#fee2e2", borderRadius: 999, height: 4, overflow: "hidden" }}>
                   <div style={{ height: "100%", width: `${budgetPercent}%`, background: "#dc2626", borderRadius: 999, transition: "width 0.4s" }} />
@@ -1025,6 +1025,9 @@ function RecipesTab({ selections, menus, userPrefs }: { selections: DaySelection
       if (userPrefs.diet_type === "pescatarian" && !types.includes("pescatarian") && !types.includes("omnivore") && !types.includes("vegetarian")) return false
     }
     if (userPrefs.intolerances.includes("gluten-free") && !m.is_gluten_free) return false
+    if (userPrefs.intolerances.includes("dairy-free") && m.ingredients?.some((i: any) => i.category === "dairy")) return false
+    if (userPrefs.intolerances.includes("egg-free") && m.ingredients?.some((i: any) => i.name?.toLowerCase().includes("egg"))) return false
+    if (userPrefs.intolerances.includes("shellfish-free") && m.tags?.some((t: string) => ["seafood","prawns","mussels","shellfish"].includes(t))) return false
     return true
   })
 
@@ -1172,7 +1175,7 @@ function ProfileTab({ userPrefs, userId, onSave }: { userPrefs: UserPrefs, userI
           border: "none", borderRadius: 999, padding: "11px 24px",
           fontSize: 14, fontWeight: 700, cursor: "pointer", transition: "all 0.2s"
         }}>
-          {saving ? "Saving..." : saved ? "✓“ Saved!" : "Save changes"}
+          {saving ? "Saving..." : saved ? "✓  Saved!" : "Save changes"}
         </button>
       </div>
 
@@ -1233,7 +1236,7 @@ function ProfileTab({ userPrefs, userId, onSave }: { userPrefs: UserPrefs, userI
       {/* Q4 Health goals */}
       <div style={s.card}>
         <p style={s.sectionTitle}>Health goals</p>
-        <p style={s.hint}>Select all that apply —” used to personalise recipe suggestions.</p>
+        <p style={s.hint}>Select all that apply — used to personalise recipe suggestions.</p>
         <div style={s.row}>
           {[
             { val: "weight-loss", label: "Weight loss" },
@@ -1331,7 +1334,7 @@ function ProfileTab({ userPrefs, userId, onSave }: { userPrefs: UserPrefs, userI
           border: "none", borderRadius: 999, padding: "14px 40px",
           fontSize: 16, fontWeight: 700, cursor: "pointer", transition: "all 0.2s"
         }}>
-          {saving ? "Saving..." : saved ? "✓“ Saved!" : "Save changes"}
+          {saving ? "Saving..." : saved ? "✓  Saved!" : "Save changes"}
         </button>
       </div>
     </div>

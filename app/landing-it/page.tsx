@@ -2,16 +2,9 @@
 import { useState } from "react"
 
 export default function LandingPageIT() {
-  const [email, setEmail] = useState("")
-  const [submitted, setSubmitted] = useState(false)
   const [count, setCount] = useState(73)
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!email) return
-    setSubmitted(true)
-    setCount(prev => prev - 1)
-  }
+
 
   return (
     <div style={{ fontFamily: "'DM Sans', sans-serif", background: "#faf8f3", color: "#1a1a1a", overflowX: "hidden" }}>
@@ -396,25 +389,27 @@ export default function LandingPageIT() {
               <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, marginTop: 4 }}>completamente gratuito</div>
             </div>
           </div>
-          {!submitted ? (
-            <form onSubmit={handleSubmit} style={{ maxWidth: 480, margin: "0 auto" }}>
-              <div style={{ display: "flex", background: "var(--white)", borderRadius: 999, padding: 6, boxShadow: "0 8px 40px rgba(0,0,0,0.2)" }}>
-                <input suppressHydrationWarning type="email" value={email} onChange={e => setEmail(e.target.value)}
-                  placeholder="Inserisci la tua email" required
-                  style={{ flex: 1, border: "none", outline: "none", padding: "12px 20px", fontSize: 15, borderRadius: 999, fontFamily: "DM Sans, sans-serif", color: "var(--text)", background: "transparent" }} />
-                <button type="submit" className="cta-btn" style={{ margin: 0, padding: "12px 24px", fontSize: 14 }}>Prenota il mio posto</button>
-              </div>
-              <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, marginTop: 12 }}>Nessuno spam. Nessuna carta di credito. Cancellazione in qualsiasi momento.</p>
-            </form>
-          ) : (
-            <div style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 20, padding: "32px 40px", maxWidth: 480, margin: "0 auto" }}>
-              <div style={{ fontSize: 48, marginBottom: 12 }}>🎉</div>
-              <h3 style={{ color: "#fff", fontFamily: "Playfair Display, serif", fontSize: 24, fontWeight: 700, marginBottom: 8 }}>Sei nella lista!</h3>
-              <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 15, lineHeight: 1.6 }}>
-                Ti contatteremo a <strong style={{ color: "#fff" }}>{email}</strong> quando Genie sara disponibile.
-              </p>
-            </div>
-          )}
+          <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
+            <a href="/onboarding" style={{
+              background: "var(--orange)", color: "#fff", textDecoration: "none",
+              borderRadius: 999, padding: "16px 40px", fontSize: 17, fontWeight: 700,
+              boxShadow: "0 4px 24px rgba(232,108,47,0.4)", transition: "all 0.2s",
+              display: "inline-flex", alignItems: "center", gap: 8
+            }}>
+              Inizia gratis — 1 anno omaggio
+            </a>
+            <a href="/login" style={{
+              background: "rgba(255,255,255,0.15)", color: "#fff", textDecoration: "none",
+              borderRadius: 999, padding: "16px 32px", fontSize: 17, fontWeight: 600,
+              border: "2px solid rgba(255,255,255,0.4)", transition: "all 0.2s",
+              display: "inline-flex", alignItems: "center", gap: 8
+            }}>
+              Hai gia un account? Accedi
+            </a>
+          </div>
+          <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, marginTop: 16 }}>
+            Nessuna carta di credito. Cancellazione in qualsiasi momento.
+          </p>
           <div style={{ display: "flex", gap: 24, justifyContent: "center", flexWrap: "wrap", marginTop: 48 }}>
             {["100+ ricette", "Pianificatore settimanale", "Lista della spesa", "Monitoraggio nutrizionale", "Stima del budget", "Italiano e inglese"].map(item => (
               <span key={item} style={{ color: "rgba(255,255,255,0.8)", fontSize: 14, fontWeight: 500 }}>✓ {item}</span>
