@@ -63,6 +63,7 @@ export async function fetchAllRecipes(lang: string = "en"): Promise<Menu[]> {
     is_gluten_free: r.is_gluten_free || false,
     is_vegetarian: r.is_vegetarian || false,
     is_vegan: r.is_vegan || false,
+    dish_category: r.dish_category || "",
     recipe_steps: (steps || [])
       .filter(s => s.recipe_id === r.id)
       .sort((a, b) => a.step_number - b.step_number)

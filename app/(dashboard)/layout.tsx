@@ -362,6 +362,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           .desktop-nav { display: none !important; }
           .hamburger { display: block !important; }
           .mobile-bottom-nav { display: flex !important; }
+          .grid-auto { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
         }
       `}</style>
 
@@ -474,13 +475,13 @@ function WeeklyTab({ weeks, menus, userPrefs, updateWeek, confirmWeek, toggleExp
                       fontSize: 12, cursor: "pointer", fontWeight: 600, flexShrink: 0
                     }}>{t("weekly.cancel")}</button>
                   </div>
-                  <WeekEditor week={week} menus={menus} userPrefs={userPrefs} onUpdate={(s) => updateWeek(week.id, s)} onConfirm={() => confirmWeek(week.id)} isComplete={isComplete} isEditing={true} />
+                  <WeekEditor week={week} weeks={weeks} menus={menus} userPrefs={userPrefs} onUpdate={(s) => updateWeek(week.id, s)} onConfirm={() => confirmWeek(week.id)} isComplete={isComplete} isEditing={true} />
                 </div>
               )}
 
               {week.expanded && !week.confirmed && !week.editing && (
                 <div style={{ borderTop: "1px solid var(--border)", padding: "16px" }}>
-                  <WeekEditor week={week} menus={menus} userPrefs={userPrefs} onUpdate={(s) => updateWeek(week.id, s)} onConfirm={() => confirmWeek(week.id)} isComplete={isComplete} isEditing={false} />
+                  <WeekEditor week={week} weeks={weeks} menus={menus} userPrefs={userPrefs} onUpdate={(s) => updateWeek(week.id, s)} onConfirm={() => confirmWeek(week.id)} isComplete={isComplete} isEditing={false} />
                 </div>
               )}
             </div>
@@ -507,7 +508,7 @@ function WeekReadOnly({ week, onEdit }: { week: Week; onEdit: () => void }) {
           color: "var(--green)", borderRadius: 999, padding: "7px 18px",
           fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex",
           alignItems: "center", gap: 6, transition: "all 0.15s"
-        }}>Edit {t("weekly.editWeek")}</button>
+        }}>{t("weekly.editWeek")}</button>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {week.selections.map((s, i) => (
@@ -545,8 +546,8 @@ function WeekReadOnly({ week, onEdit }: { week: Week; onEdit: () => void }) {
   )
 }
 
-function WeekEditor({ week, menus, userPrefs, onUpdate, onConfirm, isComplete, isEditing }: {
-  week: Week; menus: Menu[]; userPrefs: UserPrefs; onUpdate: (s: DaySelection[]) => void; onConfirm: () => void; isComplete: boolean; isEditing: boolean
+function WeekEditor({ week, weeks, menus, userPrefs, onUpdate, onConfirm, isComplete, isEditing }: {
+  week: Week; weeks: Week[]; menus: Menu[]; userPrefs: UserPrefs; onUpdate: (s: DaySelection[]) => void; onConfirm: () => void; isComplete: boolean; isEditing: boolean
 }) {
   const { t } = useTranslation()
   const [activeDay, setActiveDay] = useState(0)
@@ -569,7 +570,60 @@ function WeekEditor({ week, menus, userPrefs, onUpdate, onConfirm, isComplete, i
     return true
   })
 
-  const filtered = filter === "all" ? allowedMenus : allowedMenus.filter(m => m.tags.includes(filter))
+  // ── ALGORITHM B: Smart balanced 10-dish weekly selection ────────────────
+  const recentlyUsedIds = new Set<string>()
+  weeks.forEach((w: Week) => {
+    if (w.id === week.id) return
+    if (!w.confirmed) return
+    w.selections.forEach((s: DaySelection) => {
+      if (s.menu) recentlyUsedIds.add(s.menu.id)
+    })
+  })
+
+  const scoredMenus = allowedMenus.map(m => {
+    let score = 0
+    if (!recentlyUsedIds.has(m.id)) score += 100
+    else score += 20
+    const weekCategories = week.selections
+      .filter((s: DaySelection) => s.menu)
+      .map((s: DaySelection) => (s.menu as any)?.dish_category || "")
+    const cat = (m as any).dish_category || ""
+    if (!weekCategories.includes(cat)) score += 30
+    const weekTags = week.selections.flatMap((s: DaySelection) => s.menu?.tags || [])
+    score += Math.min(m.tags.filter((t: string) => !weekTags.includes(t)).length * 5, 20)
+    if (userPrefs.health_goals?.includes("high-protein") && m.protein > 30) score += 15
+    if (userPrefs.health_goals?.includes("weight-loss") && m.calories < 450) score += 15
+    if (userPrefs.health_goals?.includes("more-veg") && cat === "vegetarian") score += 15
+    return { ...m, _score: score }
+  }).sort((a, b) => b._score - a._score)
+
+  const targets: Record<string, number> = { chicken: 2, fish: 2, meat: 1, vegetarian: 2 }
+  const picked: typeof scoredMenus = []
+  const pickedIds = new Set<string>()
+  ;["chicken", "fish", "meat", "vegetarian"].forEach(cat => {
+    let filled = 0
+    for (const m of scoredMenus) {
+      if (filled >= (targets[cat] || 0)) break
+      if (pickedIds.has(m.id)) continue
+      const mCat = (m as any).dish_category || ""
+      if (mCat === cat || (cat === "vegetarian" && mCat === "vegan")) {
+        picked.push(m); pickedIds.add(m.id); filled++
+      }
+    }
+  })
+  for (const m of scoredMenus) {
+    if (picked.length >= 10) break
+    if (!pickedIds.has(m.id)) { picked.push(m); pickedIds.add(m.id) }
+  }
+  const smartSelection = picked.sort((a, b) => {
+    const aFresh = recentlyUsedIds.has(a.id) ? 0 : 1
+    const bFresh = recentlyUsedIds.has(b.id) ? 0 : 1
+    return bFresh - aFresh || b._score - a._score
+  })
+
+  const filtered = filter === "all"
+    ? smartSelection
+    : smartSelection.filter((m: any) => m.tags.includes(filter))
 
   const selectMenu = (menu: Menu) => {
     const updated = [...week.selections]
@@ -652,14 +706,44 @@ function WeekEditor({ week, menus, userPrefs, onUpdate, onConfirm, isComplete, i
       ) : filtered.length === 0 ? (
         <div style={{ textAlign: "center", padding: "40px 0", color: "var(--text-muted)" }}>{t("emptyStates.noRecipesFilter")}</div>
       ) : (
-        <div className="grid-auto" style={{ marginBottom: 20 }}>
-          {filtered.map(menu => (
-            <MenuCard key={menu.id} menu={menu}
-              selected={week.selections[activeDay].menu?.id === menu.id}
-              onSelect={() => selectMenu(menu)}
-              onDeselect={clearDay}
-            />
-          ))}
+        <div className="grid-auto" style={{ marginBottom: 20, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
+
+          {filtered.map((menu: any) => {
+            const isRecentlyUsed = recentlyUsedIds.has(menu.id)
+            const isSelected = week.selections[activeDay].menu?.id === menu.id
+            return (
+              <div key={menu.id} style={{ position: "relative", opacity: isRecentlyUsed && !isSelected ? 0.45 : 1, transition: "opacity 0.2s" }}>
+                {menu.image_url ? (
+                  <MenuCard menu={menu}
+                    selected={isSelected}
+                    onSelect={() => selectMenu(menu)}
+                    onDeselect={clearDay}
+                  />
+                ) : (
+                  <div onClick={() => !isSelected ? selectMenu(menu) : clearDay()} style={{
+                    background: isSelected ? "var(--green-pale)" : "var(--white)",
+                    border: isSelected ? "2px solid var(--green)" : "2px solid var(--border)",
+                    borderRadius: "var(--radius)", padding: "14px", cursor: "pointer",
+                    display: "flex", alignItems: "center", gap: 10
+                  }}>
+                    <div style={{ width: 60, height: 60, borderRadius: 8, background: "var(--green-pale)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>🍽</div>
+                    <div>
+                      <p style={{ fontWeight: 600, fontSize: 14, marginBottom: 2 }}>{menu.name}</p>
+                      <p style={{ fontSize: 11, color: "var(--text-muted)" }}>{menu.cook_time} min · {menu.calories} kcal</p>
+                    </div>
+                  </div>
+                )}
+                {isRecentlyUsed && !isSelected && (
+                  <div style={{
+                    position: "absolute", top: 6, right: 6,
+                    background: "rgba(0,0,0,0.55)", color: "#fff",
+                    borderRadius: 999, padding: "2px 8px",
+                    fontSize: 9, fontWeight: 700, pointerEvents: "none"
+                  }}>used recently</div>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
 
@@ -684,15 +768,31 @@ function IngredientsTab({ weeks, userPrefs }: { weeks: Week[], userPrefs: UserPr
   const { t } = useTranslation()
   const [selectedWeekIds, setSelectedWeekIds] = useState<number[]>([0])
   const householdMultiplier = userPrefs.household_size / 2
-  const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({})
+  const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>(() => {
+    // Load from localStorage on mount
+    if (typeof window === "undefined") return {}
+    try {
+      const saved = localStorage.getItem("genie-checked-items")
+      return saved ? JSON.parse(saved) : {}
+    } catch { return {} }
+  })
+
+  // Persist checked items whenever they change
+  const updateCheckedItems = (updater: (prev: Record<string, boolean>) => Record<string, boolean>) => {
+    setCheckedItems(prev => {
+      const next = updater(prev)
+      try { localStorage.setItem("genie-checked-items", JSON.stringify(next)) } catch {}
+      return next
+    })
+  }
 
   const toggleWeek = (id: number) => {
     setSelectedWeekIds(prev => prev.includes(id) ? prev.filter(w => w !== id) : [...prev, id].sort())
-    setCheckedItems({}) // reset checkboxes when changing weeks
+    updateCheckedItems(() => ({})) // reset checkboxes when changing weeks
   }
 
   const toggleItem = (key: string) => {
-    setCheckedItems(prev => ({ ...prev, [key]: !prev[key] }))
+    updateCheckedItems(prev => ({ ...prev, [key]: !prev[key] }))
   }
 
   const selectedWeeks = weeks.filter(w => selectedWeekIds.includes(w.id))
@@ -708,9 +808,9 @@ function IngredientsTab({ weeks, userPrefs }: { weeks: Week[], userPrefs: UserPr
         const scaledAmount = Math.round((ing.amount * householdMultiplier) * 10) / 10
         if (merged[key]) {
           merged[key].amount += scaledAmount
-          merged[key].days.push(`${s.day.slice(0, 3)} (${week.label.split(" ")[0]})`)
+          merged[key].days.push(`${s.day.slice(0, 3)} (${week.weekOffset === 0 ? (i18n.language === "it" ? "Questa" : "This") : week.weekOffset === 1 ? (i18n.language === "it" ? "Prossima" : "Next") : (i18n.language === "it" ? "Dopo" : "After")})`)
         } else {
-          merged[key] = { ...ing, amount: scaledAmount, days: [`${s.day.slice(0, 3)} (${week.label.split(" ")[0]})`], weekLabel: week.label }
+          merged[key] = { ...ing, amount: scaledAmount, days: [`${s.day.slice(0, 3)} (${week.weekOffset === 0 ? (i18n.language === "it" ? "Questa" : "This") : week.weekOffset === 1 ? (i18n.language === "it" ? "Prossima" : "Next") : (i18n.language === "it" ? "Dopo" : "After")})`], weekLabel: week.label }
         }
       })
     })
@@ -820,9 +920,9 @@ function IngredientsTab({ weeks, userPrefs }: { weeks: Week[], userPrefs: UserPr
           {/* Summary stats bar */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 16 }}>
             {[
-              { emoji: "", label: "Items to buy", value: `${remainingCount} / ${totalItems}`, color: "var(--green)", sub: checkedCount > 0 ? `${checkedCount} ticked off` : "Tap items as you shop" },
-              { emoji: "", label: "Est. cost", value: `~€${estimatedCost.toFixed(0)}`, color: overBudget ? "#dc2626" : "var(--orange)", sub: `For ${userPrefs.household_size} people` },
-              { emoji: "", label: "Avg kcal / day", value: avgCalories > 0 ? `${avgCalories} kcal` : "", color: "#3b82f6", sub: `Over ${plannedDays.length} planned dinners` },
+              { emoji: "", label: t("ingredients.title") === "Lista della spesa" ? "Articoli da comprare" : "Items to buy", value: `${remainingCount} / ${totalItems}`, color: "var(--green)", sub: checkedCount > 0 ? `${checkedCount} ${i18n.language === "it" ? "spuntati" : "ticked off"}` : (i18n.language === "it" ? "Tocca gli articoli mentre fai la spesa" : "Tap items as you shop") },
+              { emoji: "", label: i18n.language === "it" ? "Costo stimato" : "Est. cost", value: `~€${estimatedCost.toFixed(0)}`, color: overBudget ? "#dc2626" : "var(--orange)", sub: `${i18n.language === "it" ? "Per" : "For"} ${userPrefs.household_size} ${i18n.language === "it" ? "persone" : "people"}` },
+              { emoji: "", label: i18n.language === "it" ? "Kcal medi / giorno" : "Avg kcal / day", value: avgCalories > 0 ? `${avgCalories} kcal` : "", color: "#3b82f6", sub: `${i18n.language === "it" ? "Su" : "Over"} ${plannedDays.length} ${i18n.language === "it" ? "cene pianificate" : "planned dinners"}` },
             ].map(card => (
               <div key={card.label} style={{ background: "var(--white)", borderRadius: "var(--radius)", border: `1px solid ${card.color === "#dc2626" ? "#fecaca" : "var(--border)"}`, padding: "14px 18px", display: "flex", gap: 12, alignItems: "center" }}>
                 <span style={{ fontSize: 28 }}>{card.emoji}</span>
@@ -865,7 +965,7 @@ function IngredientsTab({ weeks, userPrefs }: { weeks: Week[], userPrefs: UserPr
               <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
                 {checkedCount} of {totalItems} items ticked off
               </p>
-              <button onClick={() => setCheckedItems({})} style={{
+              <button onClick={() => updateCheckedItems(() => ({}))} style={{
                 background: "transparent", border: "1px solid var(--border)", borderRadius: 999,
                 padding: "4px 12px", fontSize: 12, color: "var(--text-muted)", cursor: "pointer"
               }}>Reset all</button>
