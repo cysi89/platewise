@@ -747,6 +747,9 @@ function WeekEditor({ week, weeks, menus, userPrefs, onUpdate, onConfirm, isComp
         </div>
       )}
 
+      {/* Search all recipes */}
+      <SearchAllRecipes menus={menus} onSelect={selectMenu} lang={i18n.language} />
+
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 14, borderTop: "1px solid var(--border)", gap: 12, flexWrap: "wrap" }}>
         <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
           {week.selections.filter(s => s.menu || s.skipped).length}/7 {t("weekly.daysPlanned")}{isComplete && ` — ${t("weekly.ready")}`}
@@ -1436,6 +1439,106 @@ function ProfileTab({ userPrefs, userId, onSave }: { userPrefs: UserPrefs, userI
         }}>
           {saving ? "Saving..." : saved ? "✓  Saved!" : "Save changes"}
         </button>
+      </div>
+    </div>
+  )
+}
+
+function SearchAllRecipes({ menus, onSelect, lang }: {
+  menus: Menu[]
+  onSelect: (menu: Menu) => void
+  lang: string
+}) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState("")
+
+  const results = query.length > 1
+    ? menus.filter(m =>
+        m.name.toLowerCase().includes(query.toLowerCase()) ||
+        m.tags.some(t => t.includes(query.toLowerCase()))
+      ).slice(0, 8)
+    : []
+
+  const handleSelect = (menu: Menu) => {
+    onSelect(menu)
+    setQuery("")
+    setOpen(false)
+  }
+
+  if (!open) return (
+    <div style={{ textAlign: "center", padding: "12px 0 4px" }}>
+      <button onClick={() => setOpen(true)} style={{
+        background: "none", border: "none", cursor: "pointer",
+        fontSize: 13, color: "var(--text-muted)", textDecoration: "underline",
+        fontFamily: "inherit"
+      }}>
+        {lang === "it" ? "Non trovi il piatto? Cerca tra tutte le ricette" : "Can't find your dish? Search all recipes"}
+      </button>
+    </div>
+  )
+
+  return (
+    <div style={{ padding: "12px 0 4px" }}>
+      <div style={{ position: "relative" }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <input
+            autoFocus
+            type="text"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder={lang === "it" ? "Cerca ricetta..." : "Search recipe..."}
+            style={{
+              flex: 1, padding: "10px 14px", borderRadius: 999,
+              border: "2px solid var(--green)", fontSize: 14,
+              fontFamily: "inherit", outline: "none", background: "var(--white)"
+            }}
+          />
+          <button onClick={() => { setOpen(false); setQuery("") }} style={{
+            background: "none", border: "none", cursor: "pointer",
+            fontSize: 18, color: "var(--text-muted)", padding: "4px 8px"
+          }}>✕</button>
+        </div>
+
+        {results.length > 0 && (
+          <div style={{
+            position: "absolute", top: "100%", left: 0, right: 0,
+            background: "var(--white)", border: "1px solid var(--border)",
+            borderRadius: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+            zIndex: 50, marginTop: 4, overflow: "hidden"
+          }}>
+            {results.map(menu => (
+              <div key={menu.id} onClick={() => handleSelect(menu)} style={{
+                display: "flex", alignItems: "center", gap: 10,
+                padding: "10px 14px", cursor: "pointer", borderBottom: "1px solid var(--border)",
+                transition: "background 0.1s"
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = "var(--green-pale)")}
+              onMouseLeave={e => (e.currentTarget.style.background = "var(--white)")}>
+                <img src={menu.image_url} alt={menu.name}
+                  style={{ width: 36, height: 36, borderRadius: 6, objectFit: "cover", flexShrink: 0 }}
+                  onError={e => { (e.target as HTMLImageElement).style.display = "none" }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontWeight: 600, fontSize: 14, marginBottom: 1 }}>{menu.name}</p>
+                  <p style={{ fontSize: 11, color: "var(--text-muted)" }}>{menu.cook_time} min · {menu.calories} kcal</p>
+                </div>
+                <span style={{ fontSize: 11, color: "var(--green)", fontWeight: 700, flexShrink: 0 }}>
+                  {lang === "it" ? "Aggiungi" : "Add"}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {query.length > 1 && results.length === 0 && (
+          <div style={{
+            position: "absolute", top: "100%", left: 0, right: 0,
+            background: "var(--white)", border: "1px solid var(--border)",
+            borderRadius: 12, padding: "14px", textAlign: "center",
+            color: "var(--text-muted)", fontSize: 13, zIndex: 50, marginTop: 4
+          }}>
+            {lang === "it" ? "Nessuna ricetta trovata" : "No recipes found"}
+          </div>
+        )}
       </div>
     </div>
   )
