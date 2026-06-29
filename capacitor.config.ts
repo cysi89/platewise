@@ -5,7 +5,8 @@ const config: CapacitorConfig = {
   appName: 'The Genie',
   webDir: 'out',
   server: {
-    androidScheme: 'https'
+    url: 'https://thegenie.life',
+    cleartext: true
   }
 }
 

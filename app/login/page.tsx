@@ -45,7 +45,7 @@ export default function LoginPage() {
         boxShadow: "0 8px 48px rgba(0,0,0,0.10)", border: "1px solid var(--border)"
       }}>
         <div style={{ textAlign: "center", marginBottom: 40 }}>
-          <img src="/images/genie-logo.png" alt="Genie"
+          <img src="/genie-logo.png" alt="Genie"
             style={{ height: 80, marginBottom: 16, objectFit: "contain" }}
             onError={e => { (e.target as HTMLImageElement).style.display = "none" }} />
           <h1 style={{

@@ -258,7 +258,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return (
       <div style={{ minHeight: "100vh", background: "var(--cream)", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <div style={{ textAlign: "center" }}>
-          <img src="/images/genie-logo.png" alt="Genie" style={{ height: 60, marginBottom: 16, opacity: 0.7 }}
+          <img src="/genie-logo.png" alt="Genie" style={{ height: 60, marginBottom: 16, opacity: 0.7 }}
             onError={e => { (e.target as HTMLImageElement).style.display = "none" }} />
           <p suppressHydrationWarning style={{ color: "var(--text-muted)", fontFamily: "DM Sans, sans-serif" }}>Loading your plan...</p>
         </div>
@@ -286,7 +286,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               background: "rgba(0,0,0,0.15)",
               display: "flex", alignItems: "center", gap: 10
             }}>
-              <img src="/images/genie-logo.png" alt="Genie"
+              <img src="/genie-logo.png" alt="Genie"
                 style={{ height: 48, objectFit: "contain" }}
                 onError={e => { (e.target as HTMLImageElement).style.display = "none" }} />
               <span style={{ fontFamily: "Playfair Display, serif", color: "#fff", fontSize: 22, fontWeight: 700, whiteSpace: "nowrap" }}>Genie</span>
@@ -570,7 +570,7 @@ function WeekEditor({ week, weeks, menus, userPrefs, onUpdate, onConfirm, isComp
     return true
   })
 
-  // ── ALGORITHM B: Smart balanced 10-dish weekly selection ────────────────
+  // â”€â”€ ALGORITHM B: Smart balanced 10-dish weekly selection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const recentlyUsedIds = new Set<string>()
   weeks.forEach((w: Week) => {
     if (w.id === week.id) return
@@ -726,7 +726,7 @@ function WeekEditor({ week, weeks, menus, userPrefs, onUpdate, onConfirm, isComp
                     borderRadius: "var(--radius)", padding: "14px", cursor: "pointer",
                     display: "flex", alignItems: "center", gap: 10
                   }}>
-                    <div style={{ width: 60, height: 60, borderRadius: 8, background: "var(--green-pale)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>🍽</div>
+                    <div style={{ width: 60, height: 60, borderRadius: 8, background: "var(--green-pale)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>ðŸ½</div>
                     <div>
                       <p style={{ fontWeight: 600, fontSize: 14, marginBottom: 2 }}>{menu.name}</p>
                       <p style={{ fontSize: 11, color: "var(--text-muted)" }}>{menu.cook_time} min · {menu.calories} kcal</p>
@@ -1278,7 +1278,7 @@ function ProfileTab({ userPrefs, userId, onSave }: { userPrefs: UserPrefs, userI
           border: "none", borderRadius: 999, padding: "11px 24px",
           fontSize: 14, fontWeight: 700, cursor: "pointer", transition: "all 0.2s"
         }}>
-          {saving ? "Saving..." : saved ? "✓  Saved!" : "Save changes"}
+          {saving ? "Saving..." : saved ? "âœ“  Saved!" : "Save changes"}
         </button>
       </div>
 
@@ -1437,7 +1437,7 @@ function ProfileTab({ userPrefs, userId, onSave }: { userPrefs: UserPrefs, userI
           border: "none", borderRadius: 999, padding: "14px 40px",
           fontSize: 16, fontWeight: 700, cursor: "pointer", transition: "all 0.2s"
         }}>
-          {saving ? "Saving..." : saved ? "✓  Saved!" : "Save changes"}
+          {saving ? "Saving..." : saved ? "âœ“  Saved!" : "Save changes"}
         </button>
       </div>
     </div>
@@ -1496,7 +1496,7 @@ function SearchAllRecipes({ menus, onSelect, lang }: {
           <button onClick={() => { setOpen(false); setQuery("") }} style={{
             background: "none", border: "none", cursor: "pointer",
             fontSize: 18, color: "var(--text-muted)", padding: "4px 8px"
-          }}>✕</button>
+          }}>âœ•</button>
         </div>
 
         {results.length > 0 && (

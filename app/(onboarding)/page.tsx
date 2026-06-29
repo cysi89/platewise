@@ -39,7 +39,7 @@ export default function LoginPage() {
       }}>
         <div style={{ textAlign: "center", marginBottom: 40 }}>
           <img
-            src="/images/genie-logo.png"
+            src="/genie-logo.png"
             alt="Genie"
             style={{ height: 80, marginBottom: 16, objectFit: "contain" }}
             onError={e => { (e.target as HTMLImageElement).style.display = "none" }}

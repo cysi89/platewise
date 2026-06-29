@@ -89,7 +89,7 @@ export default function LandingPage() {
         height: 64, display: "flex", alignItems: "center", justifyContent: "space-between"
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <img src="/images/genie-logo.png" alt="Genie" style={{ height: 36, objectFit: "contain" }}
+          <img src="/genie-logo.png" alt="Genie" style={{ height: 36, objectFit: "contain" }}
             onError={e => { (e.target as HTMLImageElement).style.display = "none" }} />
           <span style={{ fontFamily: "Playfair Display, serif", fontSize: 22, fontWeight: 700, color: "var(--green)" }}>Genie</span>
         </div>
@@ -167,7 +167,7 @@ export default function LandingPage() {
                 overflow: "hidden", border: "1px solid var(--border)", zIndex: 1
               }}>
                 <div style={{ background: "var(--green)", padding: "16px 20px", display: "flex", alignItems: "center", gap: 12 }}>
-                  <img src="/images/genie-logo.png" alt="" style={{ height: 28, objectFit: "contain" }}
+                  <img src="/genie-logo.png" alt="" style={{ height: 28, objectFit: "contain" }}
                     onError={e => { (e.target as HTMLImageElement).style.display = "none" }} />
                   <span style={{ color: "#fff", fontWeight: 700, fontFamily: "Playfair Display, serif", fontSize: 16 }}>Genie</span>
                   <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
@@ -432,7 +432,7 @@ export default function LandingPage() {
       <footer style={{ background: "#111", color: "rgba(255,255,255,0.5)", padding: "40px 24px" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <img src="/images/genie-logo.png" alt="Genie" style={{ height: 28, objectFit: "contain", opacity: 0.7 }}
+            <img src="/genie-logo.png" alt="Genie" style={{ height: 28, objectFit: "contain", opacity: 0.7 }}
               onError={e => { (e.target as HTMLImageElement).style.display = "none" }} />
             <span style={{ fontFamily: "Playfair Display, serif", color: "rgba(255,255,255,0.7)", fontSize: 18, fontWeight: 700 }}>Genie</span>
           </div>

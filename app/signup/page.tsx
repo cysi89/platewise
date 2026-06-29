@@ -68,7 +68,7 @@ export default function SignupPage() {
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", maxWidth: 480, marginBottom: 24 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <img src="/images/genie-logo.png" alt="Genie" style={{ height: 32, objectFit: "contain" }}
+          <img src="/genie-logo.png" alt="Genie" style={{ height: 32, objectFit: "contain" }}
             onError={e => { (e.target as HTMLImageElement).style.display = "none" }} />
           <span style={{ fontFamily: "Playfair Display, serif", fontSize: 20, fontWeight: 700, color: "#2d5a27" }}>Genie</span>
         </div>

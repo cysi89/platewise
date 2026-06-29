@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 import { useState } from "react"
 
 export default function LandingPageIT() {
@@ -84,7 +84,7 @@ export default function LandingPageIT() {
         height: 64, display: "flex", alignItems: "center", justifyContent: "space-between"
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <img src="/images/genie-logo.png" alt="Genie" style={{ height: 36, objectFit: "contain" }}
+          <img src="/genie-logo.png" alt="Genie" style={{ height: 36, objectFit: "contain" }}
             onError={e => { (e.target as HTMLImageElement).style.display = "none" }} />
           <span style={{ fontFamily: "Playfair Display, serif", fontSize: 22, fontWeight: 700, color: "var(--green)" }}>Genie</span>
         </div>
@@ -128,7 +128,7 @@ export default function LandingPageIT() {
                 <span className="shimmer-text">cosa cucinare stasera</span>
               </h1>
               <p className="fade-up-d3" style={{ fontSize: 18, color: "var(--text-muted)", lineHeight: 1.7, marginBottom: 36, maxWidth: 480 }}>
-                Genie pianifica le cene settimanali della tua famiglia, crea automaticamente la lista della spesa, tiene traccia delle calorie e del budget — cosi puoi concentrarti su cio che conta davvero.
+                Genie pianifica le cene settimanali della tua famiglia, crea automaticamente la lista della spesa, tiene traccia delle calorie e del budget â€” cosi puoi concentrarti su cio che conta davvero.
               </p>
               <div className="fade-up-d4" style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 40 }}>
                 <a href="#early-bird" className="cta-btn">Prenota il tuo anno gratuito</a>
@@ -149,7 +149,7 @@ export default function LandingPageIT() {
               </div>
             </div>
 
-            {/* Right — app mockup */}
+            {/* Right â€” app mockup */}
             <div className="fade-up-d3 hide-mobile" style={{ position: "relative", height: 520 }}>
               <div className="float-card" style={{
                 position: "absolute", top: 40, left: "5%", right: "5%",
@@ -158,7 +158,7 @@ export default function LandingPageIT() {
                 overflow: "hidden", border: "1px solid var(--border)", zIndex: 1
               }}>
                 <div style={{ background: "var(--green)", padding: "16px 20px", display: "flex", alignItems: "center", gap: 12 }}>
-                  <img src="/images/genie-logo.png" alt="" style={{ height: 28, objectFit: "contain" }}
+                  <img src="/genie-logo.png" alt="" style={{ height: 28, objectFit: "contain" }}
                     onError={e => { (e.target as HTMLImageElement).style.display = "none" }} />
                   <span style={{ color: "#fff", fontWeight: 700, fontFamily: "Playfair Display, serif", fontSize: 16 }}>Genie</span>
                   <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
@@ -180,7 +180,7 @@ export default function LandingPageIT() {
                         onError={e => { (e.target as HTMLImageElement).style.opacity = "0" }} />
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 13, fontWeight: 600 }}>{item.dish}</div>
-                        <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{item.time} · {item.cal}</div>
+                        <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{item.time} Â· {item.cal}</div>
                       </div>
                       <div style={{ width: 8, height: 8, borderRadius: 999, background: "var(--green)" }} />
                     </div>
@@ -198,10 +198,10 @@ export default function LandingPageIT() {
                 padding: "14px 18px", border: "1px solid var(--border)",
                 display: "flex", alignItems: "center", gap: 10, zIndex: 2
               }}>
-                <span style={{ fontSize: 28 }}>🛒</span>
+                <span style={{ fontSize: 28 }}>ðŸ›’</span>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 700 }}>Lista della spesa pronta</div>
-                  <div style={{ fontSize: 11, color: "var(--text-muted)" }}>21 ingredienti · ~€48 stimati</div>
+                  <div style={{ fontSize: 11, color: "var(--text-muted)" }}>21 ingredienti Â· ~â‚¬48 stimati</div>
                 </div>
               </div>
             </div>
@@ -223,12 +223,12 @@ export default function LandingPageIT() {
           </div>
           <div className="features-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24 }}>
             {[
-              { emoji: "😩", title: "L'eterna domanda: cosa cucino stasera?", desc: "Una persona media prende 35.000 decisioni al giorno. Non sprecare energia mentale sul menu serale.", color: "#fff3f0", border: "#ffd5c8" },
-              { emoji: "🛒", title: "Caos al supermercato all'ultimo minuto", desc: "Ingredienti mancanti a meta ricetta. Acquisti doppi. Sprechi alimentari perche si compra senza un piano.", color: "#fff8f0", border: "#ffe5c2" },
-              { emoji: "⚖️", title: "Non sai cosa stai mangiando davvero", desc: "Il take-away si insinua nella routine. Nessuno tiene traccia delle calorie o dell'equilibrio nutrizionale.", color: "#f0f5ff", border: "#c2d4ff" },
-              { emoji: "👨‍👩‍👧", title: "Impossibile coordinarsi in famiglia", desc: "Gusti diversi, orari diversi, esigenze diverse. Mettere d'accordo quattro persone su sette cene e una trattativa che nessuno vuole fare.", color: "#f0fff4", border: "#c2f0d4" },
-              { emoji: "💸", title: "Spese alimentari fuori controllo", desc: "Senza pianificazione si finisce per fare spese d'emergenza costose, ordinare a domicilio, o mangiare fuori.", color: "#fdfff0", border: "#e8f5c2" },
-              { emoji: "🔁", title: "Gli stessi 5 piatti che si ripetono", desc: "Senza un piano, si va sul sicuro. Pasta ancora. Pizza ancora. La stessa rotazione noiosa.", color: "#fff0fc", border: "#f5c2ee" },
+              { emoji: "ðŸ˜©", title: "L'eterna domanda: cosa cucino stasera?", desc: "Una persona media prende 35.000 decisioni al giorno. Non sprecare energia mentale sul menu serale.", color: "#fff3f0", border: "#ffd5c8" },
+              { emoji: "ðŸ›’", title: "Caos al supermercato all'ultimo minuto", desc: "Ingredienti mancanti a meta ricetta. Acquisti doppi. Sprechi alimentari perche si compra senza un piano.", color: "#fff8f0", border: "#ffe5c2" },
+              { emoji: "âš–ï¸", title: "Non sai cosa stai mangiando davvero", desc: "Il take-away si insinua nella routine. Nessuno tiene traccia delle calorie o dell'equilibrio nutrizionale.", color: "#f0f5ff", border: "#c2d4ff" },
+              { emoji: "ðŸ‘¨â€ðŸ‘©â€ðŸ‘§", title: "Impossibile coordinarsi in famiglia", desc: "Gusti diversi, orari diversi, esigenze diverse. Mettere d'accordo quattro persone su sette cene e una trattativa che nessuno vuole fare.", color: "#f0fff4", border: "#c2f0d4" },
+              { emoji: "ðŸ’¸", title: "Spese alimentari fuori controllo", desc: "Senza pianificazione si finisce per fare spese d'emergenza costose, ordinare a domicilio, o mangiare fuori.", color: "#fdfff0", border: "#e8f5c2" },
+              { emoji: "ðŸ”", title: "Gli stessi 5 piatti che si ripetono", desc: "Senza un piano, si va sul sicuro. Pasta ancora. Pizza ancora. La stessa rotazione noiosa.", color: "#fff0fc", border: "#f5c2ee" },
             ].map(card => (
               <div key={card.title} className="card-hover" style={{ background: card.color, borderRadius: 20, border: `1px solid ${card.border}`, padding: "28px 28px 24px" }}>
                 <div style={{ fontSize: 36, marginBottom: 14 }}>{card.emoji}</div>
@@ -246,18 +246,18 @@ export default function LandingPageIT() {
           <div style={{ textAlign: "center", maxWidth: 720, margin: "0 auto 72px" }}>
             <div className="section-tag">La Soluzione</div>
             <h2 className="section-title" style={{ fontFamily: "Playfair Display, serif", fontSize: 42, fontWeight: 700, lineHeight: 1.2, marginBottom: 20 }}>
-              Ecco Genie — il pianificatore di cene per la tua famiglia
+              Ecco Genie â€” il pianificatore di cene per la tua famiglia
             </h2>
             <p style={{ fontSize: 17, color: "var(--text-muted)", lineHeight: 1.7 }}>
-              Un'unica app. Condivisa con tutta la famiglia. Pianifica la settimana, crea la lista della spesa, tiene traccia di nutrizione e budget — in meno di 5 minuti.
+              Un'unica app. Condivisa con tutta la famiglia. Pianifica la settimana, crea la lista della spesa, tiene traccia di nutrizione e budget â€” in meno di 5 minuti.
             </p>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 32, marginBottom: 72 }}>
             {[
-              { step: "01", icon: "🎯", title: "Dici le tue preferenze", desc: "Tipo di dieta, tempo di cottura, allergie, numero di persone. Ci vuole 2 minuti, una volta sola." },
-              { step: "02", icon: "📅", title: "Scegli le cene della settimana", desc: "Sfoglia oltre 100 ricette filtrate per la tua famiglia. Seleziona 7, salta qualche giorno, conferma." },
-              { step: "03", icon: "🛒", title: "Ricevi la lista della spesa", desc: "Lista ingredienti automatica, quantita sommate per tutta la settimana, costo stimato incluso." },
-              { step: "04", icon: "🍽️", title: "Cucina senza pensieri", desc: "Ricette complete con istruzioni passo-passo, tempi di cottura e valori nutrizionali." },
+              { step: "01", icon: "ðŸŽ¯", title: "Dici le tue preferenze", desc: "Tipo di dieta, tempo di cottura, allergie, numero di persone. Ci vuole 2 minuti, una volta sola." },
+              { step: "02", icon: "ðŸ“…", title: "Scegli le cene della settimana", desc: "Sfoglia oltre 100 ricette filtrate per la tua famiglia. Seleziona 7, salta qualche giorno, conferma." },
+              { step: "03", icon: "ðŸ›’", title: "Ricevi la lista della spesa", desc: "Lista ingredienti automatica, quantita sommate per tutta la settimana, costo stimato incluso." },
+              { step: "04", icon: "ðŸ½ï¸", title: "Cucina senza pensieri", desc: "Ricette complete con istruzioni passo-passo, tempi di cottura e valori nutrizionali." },
             ].map((step) => (
               <div key={step.step} style={{ background: "var(--white)", borderRadius: 20, border: "1px solid var(--border)", padding: "32px 28px", boxShadow: "0 4px 20px rgba(0,0,0,0.05)" }}>
                 <div style={{ width: 48, height: 48, borderRadius: 12, background: "var(--green)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, marginBottom: 16 }}>{step.icon}</div>
@@ -274,10 +274,10 @@ export default function LandingPageIT() {
             </div>
             <div className="stats-row" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 24 }}>
               {[
-                { icon: "📊", title: "Monitoraggio nutrizionale", desc: "Calorie, proteine, carboidrati e grassi per cena e per settimana" },
-                { icon: "💰", title: "Stima del budget", desc: "Costo approssimativo della lista della spesa per restare nei limiti" },
-                { icon: "🌍", title: "Italiano e inglese", desc: "Interfaccia e ricette disponibili in italiano e inglese" },
-                { icon: "📱", title: "Ottimizzato per mobile", desc: "Funziona perfettamente su smartphone, tablet e desktop" },
+                { icon: "ðŸ“Š", title: "Monitoraggio nutrizionale", desc: "Calorie, proteine, carboidrati e grassi per cena e per settimana" },
+                { icon: "ðŸ’°", title: "Stima del budget", desc: "Costo approssimativo della lista della spesa per restare nei limiti" },
+                { icon: "ðŸŒ", title: "Italiano e inglese", desc: "Interfaccia e ricette disponibili in italiano e inglese" },
+                { icon: "ðŸ“±", title: "Ottimizzato per mobile", desc: "Funziona perfettamente su smartphone, tablet e desktop" },
               ].map(b => (
                 <div key={b.title} style={{ textAlign: "center" }}>
                   <div style={{ fontSize: 32, marginBottom: 10 }}>{b.icon}</div>
@@ -299,7 +299,7 @@ export default function LandingPageIT() {
               100 piatti. Tutti pronti in 40 minuti.
             </h2>
             <p style={{ fontSize: 17, color: "var(--text-muted)", lineHeight: 1.7 }}>
-              Dai classici italiani ai piatti internazionali — ogni ricetta e bilanciata, usa ingredienti di supermercato ed e pronta in meno di 40 minuti.
+              Dai classici italiani ai piatti internazionali â€” ogni ricetta e bilanciata, usa ingredienti di supermercato ed e pronta in meno di 40 minuti.
             </p>
           </div>
           <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap", marginBottom: 48 }}>
@@ -339,8 +339,8 @@ export default function LandingPageIT() {
                 <div style={{ padding: "12px 14px" }}>
                   <p style={{ fontFamily: "Playfair Display, serif", fontWeight: 600, fontSize: 14, marginBottom: 4, lineHeight: 1.3 }}>{dish.name}</p>
                   <div style={{ display: "flex", gap: 10 }}>
-                    <span style={{ fontSize: 11, color: "var(--text-muted)" }}>⏱ {dish.time}</span>
-                    <span style={{ fontSize: 11, color: "var(--text-muted)" }}>🔥 {dish.cal}</span>
+                    <span style={{ fontSize: 11, color: "var(--text-muted)" }}>â± {dish.time}</span>
+                    <span style={{ fontSize: 11, color: "var(--text-muted)" }}>ðŸ”¥ {dish.cal}</span>
                   </div>
                 </div>
               </div>
@@ -348,7 +348,7 @@ export default function LandingPageIT() {
           </div>
           <div style={{ textAlign: "center" }}>
             <p style={{ color: "var(--text-muted)", fontSize: 15, marginBottom: 20 }}>
-              Mostrando 8 di <strong>24 piatti</strong> — in crescita fino a <strong>100+</strong> al lancio
+              Mostrando 8 di <strong>24 piatti</strong> â€” in crescita fino a <strong>100+</strong> al lancio
             </p>
             <a href="/onboarding" className="cta-btn">Inizia gratis</a>
           </div>
@@ -371,7 +371,7 @@ export default function LandingPageIT() {
             <span style={{ color: "#ffb088" }}>1 anno intero gratis</span>
           </h2>
           <p style={{ fontSize: 18, color: "rgba(255,255,255,0.8)", lineHeight: 1.7, marginBottom: 48 }}>
-            Genie sta per lanciare. Stiamo offrendo alle prime 100 famiglie un anno completo di accesso premium — completamente gratuito. Nessuna carta di credito. Nessuna sorpresa.
+            Genie sta per lanciare. Stiamo offrendo alle prime 100 famiglie un anno completo di accesso premium â€” completamente gratuito. Nessuna carta di credito. Nessuna sorpresa.
           </p>
           <div style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 20, padding: "24px 32px", marginBottom: 40, display: "inline-flex", alignItems: "center", gap: 20, flexWrap: "wrap", justifyContent: "center" }}>
             <div>
@@ -396,7 +396,7 @@ export default function LandingPageIT() {
               boxShadow: "0 4px 24px rgba(232,108,47,0.4)", transition: "all 0.2s",
               display: "inline-flex", alignItems: "center", gap: 8
             }}>
-              Inizia gratis — 1 anno omaggio
+              Inizia gratis â€” 1 anno omaggio
             </a>
             <a href="/login" style={{
               background: "rgba(255,255,255,0.15)", color: "#fff", textDecoration: "none",
@@ -412,7 +412,7 @@ export default function LandingPageIT() {
           </p>
           <div style={{ display: "flex", gap: 24, justifyContent: "center", flexWrap: "wrap", marginTop: 48 }}>
             {["100+ ricette", "Pianificatore settimanale", "Lista della spesa", "Monitoraggio nutrizionale", "Stima del budget", "Italiano e inglese"].map(item => (
-              <span key={item} style={{ color: "rgba(255,255,255,0.8)", fontSize: 14, fontWeight: 500 }}>✓ {item}</span>
+              <span key={item} style={{ color: "rgba(255,255,255,0.8)", fontSize: 14, fontWeight: 500 }}>âœ“ {item}</span>
             ))}
           </div>
         </div>
@@ -422,11 +422,11 @@ export default function LandingPageIT() {
       <footer style={{ background: "#111", color: "rgba(255,255,255,0.5)", padding: "40px 24px" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <img src="/images/genie-logo.png" alt="Genie" style={{ height: 28, objectFit: "contain", opacity: 0.7 }}
+            <img src="/genie-logo.png" alt="Genie" style={{ height: 28, objectFit: "contain", opacity: 0.7 }}
               onError={e => { (e.target as HTMLImageElement).style.display = "none" }} />
             <span style={{ fontFamily: "Playfair Display, serif", color: "rgba(255,255,255,0.7)", fontSize: 18, fontWeight: 700 }}>Genie</span>
           </div>
-          <p style={{ fontSize: 13 }}>© 2025 Genie. Il tuo assistente intelligente per le cene.</p>
+          <p style={{ fontSize: 13 }}>Â© 2025 Genie. Il tuo assistente intelligente per le cene.</p>
           <div style={{ display: "flex", gap: 20 }}>
             <a href="/login" style={{ color: "rgba(255,255,255,0.5)", textDecoration: "none", fontSize: 13 }}>Accedi</a>
             <a href="/landing" style={{ color: "rgba(255,255,255,0.5)", textDecoration: "none", fontSize: 13 }}>EN English</a>
